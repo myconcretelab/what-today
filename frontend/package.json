@@ -1,0 +1,16 @@
+{
+  "name": "what-today-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "echo 'Lancez votre bundler préféré (ex: Vite)'",
+    "test": "echo 'No tests'"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@mui/material": "^5.14.7",
+    "@mui/icons-material": "^5.14.7",
+    "dayjs": "^1.11.10"
+  }
+}
