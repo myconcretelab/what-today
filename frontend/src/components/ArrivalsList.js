@@ -2,23 +2,7 @@ import React from 'react';
 import { Box, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText, Card, CardContent } from '@mui/material';
 import dayjs from 'dayjs';
 import { Phone } from '@mui/icons-material';
-import airbnbLogo from '../assets/logos/airbnb.svg';
-import abritelLogo from '../assets/logos/abritel.svg';
-import gdfLogo from '../assets/logos/gitesdefrance.svg';
-
-// Renvoie le logo correspondant à la source ou null si non disponible
-function sourceLogo(type) {
-  switch (type) {
-    case 'Airbnb':
-      return airbnbLogo;
-    case 'Abritel':
-      return abritelLogo;
-    case 'GitesDeFrance':
-      return gdfLogo;
-    default:
-      return null;
-  }
-}
+import { sourceLogo } from '../utils';
 
 /**
  * Liste des arrivées à venir (aujourd'hui + 6 jours).
