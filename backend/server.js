@@ -117,6 +117,7 @@ async function chargerCalendriers() {
             });
           }
         }
+        console.log('Chargement réussi pour', gite.nom, 'depuis', source.type);
       } catch (err) {
         // En cas d'erreur, on stocke l'identifiant du gîte
         erreurs.add(gite.id);
