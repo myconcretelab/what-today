@@ -5,6 +5,9 @@ import ical from 'node-ical';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr.js';
 
+// Petite fonction utilitaire pour temporiser des actions asynchrones
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 // Configuration locale française pour dayjs
 // permet d'avoir des dates formatées "lundi 31/12/2025"
 dayjs.locale('fr');
@@ -64,10 +67,27 @@ let erreurs = new Set();
  * Cette fonction est exécutée une seule fois au démarrage du serveur.
  */
 async function chargerCalendriers() {
+  // mémorise la date de la dernière requête ical Airbnb
+  let dernierFetchAirbnb = 0;
+
   for (const gite of GITES) {
     for (const source of gite.sources) {
       try {
+        // Si la source provient d'Airbnb, on s'assure qu'au moins 500 ms se sont écoulées
+        if (source.type === 'Airbnb') {
+          const now = Date.now();
+          const attente = 500 - (now - dernierFetchAirbnb);
+          if (attente > 0) {
+            await sleep(attente);
+          }
+          dernierFetchAirbnb = Date.now();
+        }
+
         const res = await fetch(source.url);
+        const retryAfter = res.headers.get('retry-after');
+        if (retryAfter) {
+          console.log('Retry-After reçu pour', source.url, ':', retryAfter);
+        }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const text = await res.text();
 
