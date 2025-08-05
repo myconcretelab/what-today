@@ -35,7 +35,8 @@ const GITES = [
     sources: [
       { url: 'https://www.airbnb.fr/calendar/ical/1182344118629001592.ics?s=641548df33ebc6bf6b5f383c7aec25ac', type: 'Airbnb' },
       { url: 'https://www.airbnb.fr/calendar/ical/48504640.ics?s=c27d399e029a03b6b4dd791fbf026fee', type: 'Airbnb' },
-      { url: 'http://www.abritel.fr/icalendar/094a7b5f6cf345f9b51940e07e588ab2.ics', type: 'Abritel' }
+      { url: 'http://www.abritel.fr/icalendar/094a7b5f6cf345f9b51940e07e588ab2.ics', type: 'Abritel' },
+      { url: 'https://reservation.itea.fr/iCal_70b69a7451324ef50d43907fdb8b5c81.ics?aicc=f3792c7c79df6c160a2518bf3c55e9e6', type: 'Gites de France' }
     ]
   },
   {
