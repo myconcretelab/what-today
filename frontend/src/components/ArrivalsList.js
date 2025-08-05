@@ -1,8 +1,7 @@
 import React from 'react';
 import { Box, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText, Card, CardContent } from '@mui/material';
 import dayjs from 'dayjs';
-import { Phone } from '@mui/icons-material';
-import { sourceLogo } from '../utils';
+import { sourceColor, giteInitial } from '../utils';
 
 /**
  * Liste des arrivées à venir (aujourd'hui + 6 jours).
@@ -32,20 +31,20 @@ function ArrivalsList({ bookings, errors }) {
             </Typography>
             <List>
               {groupes[key].map((ev, idx) => {
-                const logo = sourceLogo(ev.source);
+                const color = sourceColor(ev.source);
+                const initial = giteInitial(ev.giteId);
                 return (
-                  <ListItem key={idx} sx={{ bgcolor: ev.couleur + '33', mb: 1 }}>
+                  <ListItem key={idx} sx={{ bgcolor: color + '33', mb: 1 }}>
                     <ListItemAvatar>
                       <Avatar
-                        src={logo || undefined}
                         sx={{
-                          bgcolor: logo ? '#fff' : ev.couleur,
+                          bgcolor: color,
                           boxShadow: 1,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.05)' }
                         }}
                       >
-                        {!logo && <Phone />}
+                        {initial}
                       </Avatar>
                     </ListItemAvatar>
                     <ListItemText
@@ -70,20 +69,20 @@ function ArrivalsList({ bookings, errors }) {
           <Typography variant="h6">Prochains jours</Typography>
           <List>
             {groupes.next.map((ev, idx) => {
-              const logo = sourceLogo(ev.source);
+              const color = sourceColor(ev.source);
+              const initial = giteInitial(ev.giteId);
               return (
                 <ListItem key={idx}>
                   <ListItemAvatar>
                     <Avatar
-                      src={logo || undefined}
                       sx={{
-                        bgcolor: logo ? '#fff' : ev.couleur,
+                        bgcolor: color,
                         boxShadow: 1,
                         transition: 'transform 0.2s',
                         '&:hover': { transform: 'scale(1.05)' }
                       }}
                     >
-                      {!logo && <Phone />}
+                      {initial}
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
