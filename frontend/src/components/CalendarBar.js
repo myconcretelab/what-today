@@ -3,9 +3,7 @@ import { Box, Typography, Tooltip, Avatar, Card, CardContent } from '@mui/materi
 import { Phone } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
-import airbnbLogo from '../assets/logos/airbnb.svg';
-import abritelLogo from '../assets/logos/abritel.svg';
-import gdfLogo from '../assets/logos/gitesdefrance.svg';
+import { sourceLogo } from '../utils';
 
 // Animation légère pour les arrivées du jour
 const pulse = keyframes`
@@ -13,20 +11,6 @@ const pulse = keyframes`
   50% { transform: scale(1.3); }
   100% { transform: scale(1); }
 `;
-
-// Renvoie le logo correspondant à la source ou null si non disponible
-function sourceLogo(type) {
-  switch (type) {
-    case 'Airbnb':
-      return airbnbLogo;
-    case 'Abritel':
-      return abritelLogo;
-    case 'GitesDeFrance':
-      return gdfLogo;
-    default:
-      return null;
-  }
-}
 
 /**
  * Barre de calendrier sur 7 jours.
