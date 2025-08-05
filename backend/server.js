@@ -2,8 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
 import ical from 'node-ical';
-import 'dayjs/locale/fr'; 
+import dayjs from 'dayjs';
 import 'dayjs/locale/fr.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Pour avoir __dirname en ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Petite fonction utilitaire pour temporiser des actions asynchrones
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -77,7 +83,7 @@ async function chargerCalendriers() {
         // Si la source provient d'Airbnb, on s'assure qu'au moins 500 ms se sont écoulées
         if (source.type === 'Airbnb') {
           const now = Date.now();
-          const attente = 2000 - (now - dernierFetchAirbnb);
+          const attente = 100 - (now - dernierFetchAirbnb);
           if (attente > 0) {
             await sleep(attente);
           }
@@ -152,6 +158,17 @@ app.get('/api/arrivals', (req, res) => {
     erreurs: Array.from(erreurs)
   });
 });
+
+// --- Servir le build React ---
+// Chemin absolu vers le dossier build de React
+const buildPath = path.join(__dirname, '../frontend/build');
+app.use(express.static(buildPath));
+
+// Pour toutes les routes qui ne sont pas API, servir index.html (React Router)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(buildPath, 'index.html'));
+});
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
