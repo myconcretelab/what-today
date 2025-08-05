@@ -1,11 +1,10 @@
 import React from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
-import { Phone } from '@mui/icons-material';
-import { sourceLogo } from '../utils';
+import { sourceColor, giteInitial } from '../utils';
 
 function Legend({ bookings }) {
   const gites = Array.from(
-    new Map(bookings.map(b => [b.giteNom, b.couleur])).entries()
+    new Map(bookings.map(b => [b.giteId, b.giteNom])).entries()
   );
   const sources = Array.from(new Set(bookings.map(b => b.source)));
 
@@ -20,17 +19,11 @@ function Legend({ bookings }) {
           mb: 0.5
         }}
       >
-        {gites.map(([name, color]) => (
-          <Box key={name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box
-              sx={{
-                width: 10,
-                height: 10,
-                bgcolor: color,
-                borderRadius: '50%',
-                border: '1px solid rgba(0,0,0,0.3)'
-              }}
-            />
+        {gites.map(([id, name]) => (
+          <Box key={id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Avatar sx={{ width: 16, height: 16, fontSize: 12 }}>
+              {giteInitial(id)}
+            </Avatar>
             <Typography variant="caption">{name}</Typography>
           </Box>
         ))}
@@ -43,20 +36,20 @@ function Legend({ bookings }) {
           gap: 1
         }}
       >
-        {sources.map(type => {
-          const logo = sourceLogo(type);
-          return (
-            <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Avatar
-                src={logo || undefined}
-                sx={{ width: 16, height: 16, bgcolor: logo ? '#fff' : 'transparent' }}
-              >
-                {!logo && <Phone sx={{ fontSize: 14 }} />}
-              </Avatar>
-              <Typography variant="caption">{type}</Typography>
-            </Box>
-          );
-        })}
+        {sources.map(type => (
+          <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                bgcolor: sourceColor(type),
+                borderRadius: '50%',
+                border: '1px solid rgba(0,0,0,0.3)'
+              }}
+            />
+            <Typography variant="caption">{type}</Typography>
+          </Box>
+        ))}
       </Box>
     </Box>
   );

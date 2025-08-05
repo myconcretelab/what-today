@@ -1,16 +1,29 @@
-import airbnbLogo from './assets/logos/airbnb.svg';
-import abritelLogo from './assets/logos/abritel.svg';
-import gdfLogo from './assets/logos/gitesdefrance.svg';
-
-export function sourceLogo(type) {
+export function sourceColor(type) {
   switch (type) {
     case 'Airbnb':
-      return airbnbLogo;
+      return '#E53935';
     case 'Abritel':
-      return abritelLogo;
-    case 'GitesDeFrance':
-      return gdfLogo;
+      return '#1976D2';
+    case 'Gites de France':
+      return '#FBC02D';
+    case 'Direct':
+      return '#424242';
     default:
-      return null;
+      return '#9E9E9E';
+  }
+}
+
+export function giteInitial(id) {
+  switch (id) {
+    case 'phonsine':
+      return 'P';
+    case 'edmond':
+      return 'E';
+    case 'liberte':
+      return 'L';
+    case 'gree':
+      return 'G';
+    default:
+      return '?';
   }
 }

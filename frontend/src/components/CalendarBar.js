@@ -1,9 +1,8 @@
 import React from 'react';
 import { Box, Typography, Tooltip, Avatar, Card, CardContent } from '@mui/material';
-import { Phone } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
-import { sourceLogo } from '../utils';
+import { sourceColor, giteInitial } from '../utils';
 
 // Animation légère pour les arrivées du jour
 const pulse = keyframes`
@@ -15,8 +14,8 @@ const pulse = keyframes`
 /**
  * Barre de calendrier sur 7 jours.
  * Les réservations sont représentées par des pastilles colorées
- * (une couleur par gîte). Tooltip au survol pour voir le détail.
- */
+ * (une couleur par source). Tooltip au survol pour voir le détail.
+*/
 function CalendarBar({ bookings, errors }) {
   // Construction de la structure { date -> [events] }
   const days = Array.from({ length: 7 }).map((_, i) => {
@@ -38,7 +37,8 @@ function CalendarBar({ bookings, errors }) {
               </Typography>
               <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
                 {events.slice(0, 3).map((ev, idx) => {
-                  const logo = sourceLogo(ev.source);
+                  const color = sourceColor(ev.source);
+                  const initial = giteInitial(ev.giteId);
                   return (
                     <Tooltip
                       key={idx}
@@ -46,9 +46,8 @@ function CalendarBar({ bookings, errors }) {
                       arrow
                     >
                       <Avatar
-                        src={logo || undefined}
                         sx={{
-                          bgcolor: logo ? '#fff' : ev.couleur,
+                          bgcolor: color,
                           width: 24,
                           height: 24,
                           fontSize: 16,
@@ -58,7 +57,7 @@ function CalendarBar({ bookings, errors }) {
                           animation: dayjs(ev.debut).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
                         }}
                       >
-                        {!logo && <Phone fontSize="inherit" />}
+                        {initial}
                       </Avatar>
                     </Tooltip>
                   );
