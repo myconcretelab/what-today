@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
 import ical from 'node-ical';
-import dayjs from 'dayjs';
+import 'dayjs/locale/fr'; 
 import 'dayjs/locale/fr.js';
 
 // Petite fonction utilitaire pour temporiser des actions asynchrones
@@ -77,14 +77,19 @@ async function chargerCalendriers() {
         // Si la source provient d'Airbnb, on s'assure qu'au moins 500 ms se sont écoulées
         if (source.type === 'Airbnb') {
           const now = Date.now();
-          const attente = 500 - (now - dernierFetchAirbnb);
+          const attente = 2000 - (now - dernierFetchAirbnb);
           if (attente > 0) {
             await sleep(attente);
           }
           dernierFetchAirbnb = Date.now();
         }
 
-        const res = await fetch(source.url);
+        const res = await fetch(source.url, {
+                headers: {
+                  'User-Agent':
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+                }
+              });
         const retryAfter = res.headers.get('retry-after');
         if (retryAfter) {
           console.log('Retry-After reçu pour', source.url, ':', retryAfter);

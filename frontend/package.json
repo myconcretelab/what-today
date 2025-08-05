@@ -3,14 +3,27 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "echo 'Lancez votre bundler préféré (ex: Vite)'",
-    "test": "echo 'No tests'"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.14.7",
-    "@mui/icons-material": "^5.14.7",
-    "dayjs": "^1.11.10"
+    "dayjs": "^1.11.13",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
