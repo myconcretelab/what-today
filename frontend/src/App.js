@@ -4,6 +4,7 @@ import CalendarBar from './components/CalendarBar';
 import ArrivalsList from './components/ArrivalsList';
 import Loader from './components/Loader';
 import { fetchArrivals } from './services/api';
+import { Box } from '@mui/material';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
@@ -34,10 +35,10 @@ function App() {
   if (loading) return <Loader />;
 
   return (
-    <div>
+    <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%' }}>
       <CalendarBar bookings={data.reservations} errors={data.erreurs} />
       <ArrivalsList bookings={data.reservations} errors={data.erreurs} />
-    </div>
+    </Box>
   );
 }
 
