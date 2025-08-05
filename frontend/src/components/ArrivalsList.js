@@ -1,20 +1,22 @@
 import React from 'react';
-import { Box, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText } from '@mui/material';
+import { Box, Typography, List, ListItem, ListItemAvatar, Avatar, ListItemText, Card, CardContent } from '@mui/material';
 import dayjs from 'dayjs';
-import { Home, BeachAccess, Nature, Phone } from '@mui/icons-material';
+import { Phone } from '@mui/icons-material';
+import airbnbLogo from '../assets/logos/airbnb.svg';
+import abritelLogo from '../assets/logos/abritel.svg';
+import gdfLogo from '../assets/logos/gitesdefrance.svg';
 
-// Même mapping d'icônes que dans CalendarBar
-function sourceIcon(type) {
+// Renvoie le logo correspondant à la source ou null si non disponible
+function sourceLogo(type) {
   switch (type) {
     case 'Airbnb':
-      return <Home />;
+      return airbnbLogo;
     case 'Abritel':
-      return <BeachAccess />;
+      return abritelLogo;
     case 'GitesDeFrance':
-      return <Nature />;
-    case 'Direct':
+      return gdfLogo;
     default:
-      return <Phone />;
+      return null;
   }
 }
 
@@ -39,49 +41,81 @@ function ArrivalsList({ bookings, errors }) {
   return (
     <Box sx={{ p: 2 }}>
       {['today', 'tomorrow'].map(key => (
-        <Box key={key} sx={{ mb: 2 }}>
-          <Typography variant="h6">
-            {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
-          </Typography>
+        <Card key={key} sx={{ mb: 2, boxShadow: 3 }}>
+          <CardContent>
+            <Typography variant="h6">
+              {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
+            </Typography>
+            <List>
+              {groupes[key].map((ev, idx) => {
+                const logo = sourceLogo(ev.source);
+                return (
+                  <ListItem key={idx} sx={{ bgcolor: ev.couleur + '33', mb: 1 }}>
+                    <ListItemAvatar>
+                      <Avatar
+                        src={logo || undefined}
+                        sx={{
+                          bgcolor: logo ? '#fff' : ev.couleur,
+                          boxShadow: 1,
+                          transition: 'transform 0.2s',
+                          '&:hover': { transform: 'scale(1.05)' }
+                        }}
+                      >
+                        {!logo && <Phone />}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={ev.giteNom}
+                      secondary={format(dayjs(ev.debut))}
+                    />
+                  </ListItem>
+                );
+              })}
+              {groupes[key].length === 0 && (
+                <Typography variant="body2" sx={{ ml: 2 }}>
+                  Aucune arrivée
+                </Typography>
+              )}
+            </List>
+          </CardContent>
+        </Card>
+      ))}
+
+      <Card sx={{ mb: 2, boxShadow: 3 }}>
+        <CardContent>
+          <Typography variant="h6">Prochains jours</Typography>
           <List>
-            {groupes[key].map((ev, idx) => (
-              <ListItem key={idx} sx={{ bgcolor: ev.couleur + '33', mb: 1 }}>
-                <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: ev.couleur }}>{sourceIcon(ev.source)}</Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={ev.giteNom}
-                  secondary={format(dayjs(ev.debut))}
-                />
-              </ListItem>
-            ))}
-            {groupes[key].length === 0 && (
+            {groupes.next.map((ev, idx) => {
+              const logo = sourceLogo(ev.source);
+              return (
+                <ListItem key={idx}>
+                  <ListItemAvatar>
+                    <Avatar
+                      src={logo || undefined}
+                      sx={{
+                        bgcolor: logo ? '#fff' : ev.couleur,
+                        boxShadow: 1,
+                        transition: 'transform 0.2s',
+                        '&:hover': { transform: 'scale(1.05)' }
+                      }}
+                    >
+                      {!logo && <Phone />}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={`${format(dayjs(ev.debut))} - ${ev.giteNom}`}
+                  />
+                </ListItem>
+              );
+            })}
+            {groupes.next.length === 0 && (
               <Typography variant="body2" sx={{ ml: 2 }}>
-                Aucune arrivée
+                Rien à signaler
               </Typography>
             )}
           </List>
-        </Box>
-      ))}
-
-      <Typography variant="h6">Prochains jours</Typography>
-      <List>
-        {groupes.next.map((ev, idx) => (
-          <ListItem key={idx}>
-            <ListItemAvatar>
-              <Avatar sx={{ bgcolor: ev.couleur }}>{sourceIcon(ev.source)}</Avatar>
-            </ListItemAvatar>
-            <ListItemText
-              primary={`${format(dayjs(ev.debut))} - ${ev.giteNom}`}
-            />
-          </ListItem>
-        ))}
-        {groupes.next.length === 0 && (
-          <Typography variant="body2" sx={{ ml: 2 }}>
-            Rien à signaler
-          </Typography>
-        )}
-      </List>
+        </CardContent>
+      </Card>
 
       {errors.length > 0 && (
         <Typography color="error" sx={{ mt: 2 }}>

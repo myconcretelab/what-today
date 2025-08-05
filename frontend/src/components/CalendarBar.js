@@ -1,8 +1,11 @@
 import React from 'react';
-import { Box, Typography, Tooltip, Avatar } from '@mui/material';
-import { Home, BeachAccess, Nature, Phone } from '@mui/icons-material';
+import { Box, Typography, Tooltip, Avatar, Card, CardContent } from '@mui/material';
+import { Phone } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
+import airbnbLogo from '../assets/logos/airbnb.svg';
+import abritelLogo from '../assets/logos/abritel.svg';
+import gdfLogo from '../assets/logos/gitesdefrance.svg';
 
 // Animation légère pour les arrivées du jour
 const pulse = keyframes`
@@ -11,18 +14,17 @@ const pulse = keyframes`
   100% { transform: scale(1); }
 `;
 
-// Renvoie l'icône correspondant à la source de réservation
-function sourceIcon(type) {
+// Renvoie le logo correspondant à la source ou null si non disponible
+function sourceLogo(type) {
   switch (type) {
     case 'Airbnb':
-      return <Home fontSize="inherit" />;
+      return airbnbLogo;
     case 'Abritel':
-      return <BeachAccess fontSize="inherit" />;
+      return abritelLogo;
     case 'GitesDeFrance':
-      return <Nature fontSize="inherit" />;
-    case 'Direct':
+      return gdfLogo;
     default:
-      return <Phone fontSize="inherit" />;
+      return null;
   }
 }
 
@@ -42,48 +44,59 @@ function CalendarBar({ bookings, errors }) {
   });
 
   return (
-    <Box sx={{ display: 'flex', overflowX: 'auto', p: 1 }}>
-      {days.map(({ date, events }) => (
-        <Box key={date.format('YYYY-MM-DD')} sx={{ textAlign: 'center', flex: 1 }}>
-          <Typography variant="caption">
-            {date.format('dd DD/MM')}
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
-            {events.slice(0, 3).map((ev, idx) => (
-              <Tooltip
-                key={idx}
-                title={`${ev.giteNom} - ${ev.source}`}
-                arrow
-              >
-                <Avatar
-                  sx={{
-                    bgcolor: ev.couleur,
-                    width: 24,
-                    height: 24,
-                    fontSize: 16,
-                    animation: dayjs(ev.debut).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
-                  }}
-                >
-                  {sourceIcon(ev.source)}
-                </Avatar>
+    <Card sx={{ mb: 2, boxShadow: 3 }}>
+      <CardContent sx={{ p: 1 }}>
+        <Box sx={{ display: 'flex', overflowX: 'auto' }}>
+          {days.map(({ date, events }) => (
+            <Box key={date.format('YYYY-MM-DD')} sx={{ textAlign: 'center', flex: 1 }}>
+              <Typography variant="caption">
+                {date.format('dd DD/MM')}
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+                {events.slice(0, 3).map((ev, idx) => {
+                  const logo = sourceLogo(ev.source);
+                  return (
+                    <Tooltip
+                      key={idx}
+                      title={`${ev.giteNom} - ${ev.source}`}
+                      arrow
+                    >
+                      <Avatar
+                        src={logo || undefined}
+                        sx={{
+                          bgcolor: logo ? '#fff' : ev.couleur,
+                          width: 24,
+                          height: 24,
+                          fontSize: 16,
+                          boxShadow: 2,
+                          transition: 'transform 0.2s',
+                          '&:hover': { transform: 'scale(1.1)' },
+                          animation: dayjs(ev.debut).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
+                        }}
+                      >
+                        {!logo && <Phone fontSize="inherit" />}
+                      </Avatar>
+                    </Tooltip>
+                  );
+                })}
+                {events.length > 3 && (
+                  <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
+                    +{events.length - 3}
+                  </Avatar>
+                )}
+              </Box>
+            </Box>
+          ))}
+          {errors.length > 0 && (
+            <Box sx={{ ml: 2 }}>
+              <Tooltip title={`Sources indisponibles: ${errors.join(', ')}`}>
+                <Typography variant="h6">?</Typography>
               </Tooltip>
-            ))}
-            {events.length > 3 && (
-              <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
-                +{events.length - 3}
-              </Avatar>
-            )}
-          </Box>
+            </Box>
+          )}
         </Box>
-      ))}
-      {errors.length > 0 && (
-        <Box sx={{ ml: 2 }}>
-          <Tooltip title={`Sources indisponibles: ${errors.join(', ')}`}>
-            <Typography variant="h6">?</Typography>
-          </Tooltip>
-        </Box>
-      )}
-    </Box>
+      </CardContent>
+    </Card>
   );
 }
 
