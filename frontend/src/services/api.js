@@ -1,5 +1,4 @@
 const ARRIVALS_URL = process.env.REACT_APP_API_URL || '/api/arrivals';
-console.log('ARRIVALS_URL:', ARRIVALS_URL);
 const STATUS_URL = '/api/statuses';
 
 export async function fetchArrivals() {
