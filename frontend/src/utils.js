@@ -7,9 +7,9 @@ export const COLORS = {
     default: '#9E9E9E'
   },
   events: {
-    arrival: '#2e7d32',
-    depart: '#d32f2f',
-    both: '#e1bee7'
+    arrival: '#bee6daff',
+    depart: '#e6c1c1ff',
+    both: '#6bb3dcff'
   }
 };
 
