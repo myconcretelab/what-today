@@ -12,14 +12,8 @@ import {
   Switch,
   Chip
 } from '@mui/material';
-import {
-  DoorFront,
-  DoorBack,
-  Login as LoginIcon,
-  Logout as LogoutIcon,
-  Sync as SyncIcon,
-  Luggage
-} from '@mui/icons-material';
+import { Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
 import { sourceColor, giteInitial } from '../utils';
 
@@ -30,8 +24,9 @@ import { sourceColor, giteInitial } from '../utils';
 function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   const today = dayjs().startOf('day');
   const tomorrow = today.add(1, 'day');
+  const theme = useTheme();
 
-  const events = bookings.flatMap(ev => {
+  const initialEvents = bookings.flatMap(ev => {
     const debut = dayjs(ev.debut);
     const fin = dayjs(ev.fin);
     if (debut.isSame(fin, 'day')) {
@@ -60,6 +55,23 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
     ];
   });
 
+  // Fusionner entrée et sortie le même jour pour un même gîte
+  const mergedMap = new Map();
+  initialEvents.forEach(ev => {
+    const key = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
+    const existing = mergedMap.get(key);
+    if (!existing) {
+      mergedMap.set(key, ev);
+    } else {
+      mergedMap.set(key, {
+        ...existing,
+        type: 'both',
+        id: `${key}_both`
+      });
+    }
+  });
+  const events = Array.from(mergedMap.values()).sort((a, b) => a.date - b.date);
+
   const format = d => d.format('dddd DD/MM');
 
   const groupes = {
@@ -82,14 +94,24 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const initial = giteInitial(ev.giteId);
                 const status = statuses[ev.id]?.done;
                 const user = statuses[ev.id]?.user;
+                const bg =
+                  ev.type === 'arrival'
+                    ? theme.palette.success.main
+                    : ev.type === 'depart'
+                    ? theme.palette.error.main
+                    : '#e1bee7';
+                const textColor = theme.palette.getContrastText(bg);
                 return (
                   <ListItem
                     key={ev.id}
                     sx={{
-                      bgcolor: status ? 'success.light' : 'error.light',
+                      bgcolor: bg,
+                      color: textColor,
                       mb: 1,
                       border: '1px solid',
-                      borderColor: status ? 'success.main' : 'error.main',
+                      borderColor: status
+                        ? theme.palette.success.dark
+                        : theme.palette.error.dark,
                       transition: 'background-color 0.3s, border-color 0.3s'
                     }}
                   >
@@ -108,26 +130,16 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     <ListItemText
                       primary={ev.giteNom}
                       secondary={format(ev.date)}
+                      primaryTypographyProps={{ sx: { color: 'inherit' } }}
+                      secondaryTypographyProps={{ sx: { color: 'inherit' } }}
                     />
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {ev.type === 'arrival' && (
-                        <>
-                          <DoorFront fontSize="small" />
-                          <Luggage fontSize="small" />
-                          <LoginIcon fontSize="small" />
-                        </>
-                      )}
-                      {ev.type === 'depart' && (
-                        <>
-                          <DoorBack fontSize="small" />
-                          <Luggage fontSize="small" />
-                          <LogoutIcon fontSize="small" />
-                        </>
-                      )}
+                      {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
+                      {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
                       {ev.type === 'both' && (
                         <>
-                          <SyncIcon fontSize="small" />
-                          <Luggage fontSize="small" />
+                          <LogoutIcon fontSize="small" />
+                          <LoginIcon fontSize="small" />
                         </>
                       )}
                       <Switch
@@ -163,8 +175,18 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
               const initial = giteInitial(ev.giteId);
+              const bg =
+                ev.type === 'arrival'
+                  ? theme.palette.success.main
+                  : ev.type === 'depart'
+                  ? theme.palette.error.main
+                  : '#e1bee7';
+              const textColor = theme.palette.getContrastText(bg);
               return (
-                <ListItem key={ev.id}>
+                <ListItem
+                  key={ev.id}
+                  sx={{ bgcolor: bg, color: textColor, mb: 1, borderRadius: 1 }}
+                >
                   <ListItemAvatar>
                     <Avatar
                       sx={{
@@ -179,26 +201,15 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                   </ListItemAvatar>
                   <ListItemText
                     primary={`${format(ev.date)} - ${ev.giteNom}`}
+                    primaryTypographyProps={{ sx: { color: 'inherit' } }}
                   />
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {ev.type === 'arrival' && (
-                      <>
-                        <DoorFront fontSize="small" />
-                        <Luggage fontSize="small" />
-                        <LoginIcon fontSize="small" />
-                      </>
-                    )}
-                    {ev.type === 'depart' && (
-                      <>
-                        <DoorBack fontSize="small" />
-                        <Luggage fontSize="small" />
-                        <LogoutIcon fontSize="small" />
-                      </>
-                    )}
+                    {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
+                    {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
                     {ev.type === 'both' && (
                       <>
-                        <SyncIcon fontSize="small" />
-                        <Luggage fontSize="small" />
+                        <LogoutIcon fontSize="small" />
+                        <LoginIcon fontSize="small" />
                       </>
                     )}
                   </Box>
