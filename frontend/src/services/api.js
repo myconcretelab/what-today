@@ -1,4 +1,4 @@
-const ARRIVALS_URL = process.env.REACT_APP_API_URL || '/api/arrivals';
+const ARRIVALS_URL = '/api/arrivals';
 const STATUS_URL = '/api/statuses';
 
 export async function fetchArrivals() {

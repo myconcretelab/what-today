@@ -2,5 +2,13 @@
   "phonsine_2025-08-06_arrival_Direct": {
     "done": true,
     "user": "Seb"
+  },
+  "edmond_2025-08-06_arrival_Airbnb": {
+    "done": true,
+    "user": "Soaz"
+  },
+  "gree_2025-08-10_arrival_Airbnb": {
+    "done": false,
+    "user": "Soaz"
   }
 }
