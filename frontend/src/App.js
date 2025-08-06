@@ -3,7 +3,7 @@ import Login from './components/Login';
 import CalendarBar from './components/CalendarBar';
 import ArrivalsList from './components/ArrivalsList';
 import Loader from './components/Loader';
-import { fetchArrivals } from './services/api';
+import { fetchArrivals, fetchStatuses, updateStatus } from './services/api';
 import { Box } from '@mui/material';
 import Legend from './components/Legend';
 
@@ -14,14 +14,24 @@ function App() {
   const [auth, setAuth] = useState(localStorage.getItem(AUTH_KEY) === 'true');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ reservations: [], erreurs: [] });
+  const [statuses, setStatuses] = useState({});
+  const USER_KEY = 'wt-user';
+  const [selectedUser, setSelectedUser] = useState(
+    localStorage.getItem(USER_KEY) || 'Soaz'
+  );
+  const [refreshing, setRefreshing] = useState(false);
 
   // Chargement des données après authentification
   useEffect(() => {
     if (!auth) return;
-    fetchArrivals()
-      .then(setData)
-      .finally(() => setLoading(false));
+    loadData().finally(() => setLoading(false));
   }, [auth]);
+
+  const loadData = async () => {
+    const [arr, stat] = await Promise.all([fetchArrivals(), fetchStatuses()]);
+    setData(arr);
+    setStatuses(stat);
+  };
 
   // Fonction de validation du mot de passe
   const handleLogin = password => {
@@ -32,14 +42,39 @@ function App() {
     }
   };
 
+  const handleStatusChange = (id, done) => {
+    updateStatus(id, done, selectedUser).then(() => {
+      setStatuses(prev => ({ ...prev, [id]: { done, user: selectedUser } }));
+    });
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadData().finally(() => setRefreshing(false));
+  };
+
   if (!auth) return <Login onLogin={handleLogin} />;
   if (loading) return <Loader />;
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%' }}>
       <CalendarBar bookings={data.reservations} errors={data.erreurs} />
-      <Legend bookings={data.reservations} />
-      <ArrivalsList bookings={data.reservations} errors={data.erreurs} />
+      <Legend
+        bookings={data.reservations}
+        selectedUser={selectedUser}
+        onUserChange={user => {
+          setSelectedUser(user);
+          localStorage.setItem(USER_KEY, user);
+        }}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+      />
+      <ArrivalsList
+        bookings={data.reservations}
+        errors={data.erreurs}
+        statuses={statuses}
+        onStatusChange={handleStatusChange}
+      />
     </Box>
   );
 }
