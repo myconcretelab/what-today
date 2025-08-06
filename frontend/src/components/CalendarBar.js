@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Typography, Tooltip, Avatar, Card, CardContent } from '@mui/material';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
-import { sourceColor, giteInitial } from '../utils';
+import { sourceColor, giteInitial, eventColor } from '../utils';
 
 // Animation légère pour les arrivées du jour
 const pulse = keyframes`
@@ -18,11 +18,35 @@ const pulse = keyframes`
 */
 function CalendarBar({ bookings, errors }) {
   // Construction de la structure { date -> [events] }
+  const initialEvents = bookings.flatMap(ev => {
+    const debut = dayjs(ev.debut);
+    const fin = dayjs(ev.fin);
+    if (debut.isSame(fin, 'day')) {
+      return [{ ...ev, date: debut, type: 'both' }];
+    }
+    return [
+      { ...ev, date: debut, type: 'arrival' },
+      { ...ev, date: fin, type: 'depart' }
+    ];
+  });
+
+  const mergedMap = new Map();
+  initialEvents.forEach(ev => {
+    const key = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
+    const existing = mergedMap.get(key);
+    if (!existing) {
+      mergedMap.set(key, ev);
+    } else {
+      mergedMap.set(key, { ...existing, type: 'both' });
+    }
+  });
+  const events = Array.from(mergedMap.values());
+
   const days = Array.from({ length: 7 }).map((_, i) => {
     const date = dayjs().startOf('day').add(i, 'day');
     return {
       date,
-      events: bookings.filter(b => dayjs(b.debut).isSame(date, 'day'))
+      events: events.filter(e => e.date.isSame(date, 'day'))
     };
   });
 
@@ -39,6 +63,7 @@ function CalendarBar({ bookings, errors }) {
                 {events.slice(0, 3).map((ev, idx) => {
                   const color = sourceColor(ev.source);
                   const initial = giteInitial(ev.giteId);
+                  const borderColor = eventColor(ev.type);
                   return (
                     <Tooltip
                       key={idx}
@@ -52,9 +77,11 @@ function CalendarBar({ bookings, errors }) {
                           height: 24,
                           fontSize: 16,
                           boxShadow: 2,
+                          border: '2px solid',
+                          borderColor,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.1)' },
-                          animation: dayjs(ev.debut).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
+                          animation: dayjs(ev.date).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
                         }}
                       >
                         {initial}

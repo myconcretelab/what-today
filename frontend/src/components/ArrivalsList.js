@@ -15,7 +15,7 @@ import {
 import { Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
-import { sourceColor, giteInitial } from '../utils';
+import { sourceColor, giteInitial, eventColor } from '../utils';
 
 /**
  * Liste des arrivées à venir (aujourd'hui + 6 jours).
@@ -94,13 +94,9 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const initial = giteInitial(ev.giteId);
                 const status = statuses[ev.id]?.done;
                 const user = statuses[ev.id]?.user;
-                const bg =
-                  ev.type === 'arrival'
-                    ? theme.palette.success.main
-                    : ev.type === 'depart'
-                    ? theme.palette.error.main
-                    : '#e1bee7';
+                const bg = eventColor(ev.type);
                 const textColor = theme.palette.getContrastText(bg);
+                const borderWidth = ev.type === 'arrival' ? 3 : 1;
                 return (
                   <ListItem
                     key={ev.id}
@@ -108,7 +104,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       bgcolor: bg,
                       color: textColor,
                       mb: 1,
-                      border: '1px solid',
+                      border: `${borderWidth}px solid`,
                       borderColor: status
                         ? theme.palette.success.dark
                         : theme.palette.error.dark,
@@ -175,12 +171,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
               const initial = giteInitial(ev.giteId);
-              const bg =
-                ev.type === 'arrival'
-                  ? theme.palette.success.main
-                  : ev.type === 'depart'
-                  ? theme.palette.error.main
-                  : '#e1bee7';
+              const bg = eventColor(ev.type);
               const textColor = theme.palette.getContrastText(bg);
               return (
                 <ListItem
