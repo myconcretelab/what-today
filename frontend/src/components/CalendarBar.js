@@ -2,7 +2,13 @@ import React from 'react';
 import { Box, Typography, Tooltip, Avatar, Card, CardContent } from '@mui/material';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
-import { sourceColor, giteInitial, eventColor } from '../utils';
+import {
+  sourceColor,
+  giteInitial,
+  eventColor,
+  borderWidth,
+  borderColor
+} from '../utils';
 
 // Animation légère pour les arrivées du jour
 const pulse = keyframes`
@@ -63,7 +69,8 @@ function CalendarBar({ bookings, errors }) {
                 {events.slice(0, 3).map((ev, idx) => {
                   const color = sourceColor(ev.source);
                   const initial = giteInitial(ev.giteId);
-                  const borderColor = eventColor(ev.type);
+                  const borderClr = borderColor(ev.type);
+                  const bw = borderWidth(ev.type);
                   return (
                     <Tooltip
                       key={idx}
@@ -77,8 +84,8 @@ function CalendarBar({ bookings, errors }) {
                           height: 24,
                           fontSize: 16,
                           boxShadow: 2,
-                          border: '2px solid',
-                          borderColor,
+                          border: `${bw}px solid`,
+                          borderColor: borderClr,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.1)' },
                           animation: dayjs(ev.date).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
