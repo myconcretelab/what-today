@@ -1,8 +1,17 @@
 import React from 'react';
-import { Box, Typography, Avatar } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Avatar,
+  Select,
+  MenuItem,
+  IconButton,
+  CircularProgress
+} from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { sourceColor, giteInitial } from '../utils';
 
-function Legend({ bookings }) {
+function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing }) {
   const gites = Array.from(
     new Map(bookings.map(b => [b.giteId, b.giteNom])).entries()
   );
@@ -10,6 +19,30 @@ function Legend({ bookings }) {
 
   return (
     <Box sx={{ mb: 2, fontSize: 12 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 1
+        }}
+      >
+        <Select
+          size="small"
+          value={selectedUser}
+          onChange={e => onUserChange(e.target.value)}
+        >
+          <MenuItem value="Soaz">Soaz</MenuItem>
+          <MenuItem value="Seb">Seb</MenuItem>
+        </Select>
+        <IconButton onClick={onRefresh} disabled={refreshing}>
+          {refreshing ? (
+            <CircularProgress size={24} />
+          ) : (
+            <RefreshIcon />
+          )}
+        </IconButton>
+      </Box>
       <Box
         sx={{
           display: 'flex',

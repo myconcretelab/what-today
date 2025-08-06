@@ -5,6 +5,7 @@ import ical from 'node-ical';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr.js';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // Pour avoir __dirname en ES modules
@@ -20,6 +21,19 @@ dayjs.locale('fr');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+
+// Fichier de stockage des statuts
+const STATUS_FILE = path.join(__dirname, 'statuses.json');
+
+function readStatuses() {
+  if (!fs.existsSync(STATUS_FILE)) return {};
+  return JSON.parse(fs.readFileSync(STATUS_FILE, 'utf-8'));
+}
+
+function writeStatuses(data) {
+  fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
+}
 
 // --- Définition des gîtes et de leurs sources ical ---
 // Chaque gîte possède plusieurs URLs ical, correspondant à
@@ -157,6 +171,19 @@ app.get('/api/arrivals', (req, res) => {
     reservations,
     erreurs: Array.from(erreurs)
   });
+});
+
+// Récupération des statuts
+app.get('/api/statuses', (req, res) => {
+  res.json(readStatuses());
+});
+
+// Mise à jour d'un statut
+app.post('/api/statuses/:id', (req, res) => {
+  const statuses = readStatuses();
+  statuses[req.params.id] = { done: req.body.done, user: req.body.user };
+  writeStatuses(statuses);
+  res.json(statuses[req.params.id]);
 });
 
 // --- Servir le build React ---
