@@ -102,7 +102,9 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const user = statuses[ev.id]?.user;
                 const bg = eventColor(ev.type);
                 const textColor = theme.palette.getContrastText(bg);
+
                 const bw = borderWidth(ev.type);
+                const borderWidth = ev.type === 'arrival' ? 3 : 3;
                 return (
                   <ListItem
                     key={ev.id}
