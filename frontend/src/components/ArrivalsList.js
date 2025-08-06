@@ -15,7 +15,13 @@ import {
 import { Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
-import { sourceColor, giteInitial, eventColor } from '../utils';
+import {
+  sourceColor,
+  giteInitial,
+  eventColor,
+  borderWidth,
+  statusBorderColor
+} from '../utils';
 
 /**
  * Liste des arrivées à venir (aujourd'hui + 6 jours).
@@ -96,6 +102,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const user = statuses[ev.id]?.user;
                 const bg = eventColor(ev.type);
                 const textColor = theme.palette.getContrastText(bg);
+
+                const bw = borderWidth(ev.type);
                 const borderWidth = ev.type === 'arrival' ? 3 : 3;
                 return (
                   <ListItem
@@ -104,10 +112,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       bgcolor: bg,
                       color: textColor,
                       mb: 1,
-                      border: `${borderWidth}px solid`,
-                      borderColor: status
-                        ? theme.palette.success.dark
-                        : theme.palette.error.dark,
+                      border: `${bw}px solid`,
+                      borderColor: statusBorderColor(status),
                       transition: 'background-color 0.3s, border-color 0.3s'
                     }}
                   >
@@ -173,10 +179,20 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
               const initial = giteInitial(ev.giteId);
               const bg = eventColor(ev.type);
               const textColor = theme.palette.getContrastText(bg);
+              const status = statuses[ev.id]?.done;
+              const user = statuses[ev.id]?.user;
+              const bw = borderWidth(ev.type);
               return (
                 <ListItem
                   key={ev.id}
-                  sx={{ bgcolor: bg, color: textColor, mb: 1, borderRadius: 1 }}
+                  sx={{
+                    bgcolor: bg,
+                    color: textColor,
+                    mb: 1,
+                    border: `${bw}px solid`,
+                    borderColor: statusBorderColor(status),
+                    transition: 'background-color 0.3s, border-color 0.3s'
+                  }}
                 >
                   <ListItemAvatar>
                     <Avatar
@@ -202,6 +218,18 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                         <LogoutIcon fontSize="small" />
                         <LoginIcon fontSize="small" />
                       </>
+                    )}
+                    <Switch
+                      size="small"
+                      checked={Boolean(status)}
+                      onChange={() => onStatusChange(ev.id, !status)}
+                    />
+                    {status && user && (
+                      <Chip
+                        avatar={<Avatar>{user[0]}</Avatar>}
+                        label={user}
+                        size="small"
+                      />
                     )}
                   </Box>
                 </ListItem>

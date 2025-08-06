@@ -35,3 +35,32 @@ export function giteInitial(id) {
       return '?';
   }
 }
+
+export const BORDER = {
+  widths: {
+    arrival: 3,
+    depart: 1,
+    both: 2
+  },
+  colors: {
+    arrival: COLORS.events.arrival,
+    depart: COLORS.events.depart,
+    both: COLORS.events.both
+  },
+  status: {
+    done: COLORS.events.arrival,
+    pending: COLORS.events.depart
+  }
+};
+
+export function borderWidth(type) {
+  return BORDER.widths[type] || BORDER.widths.both;
+}
+
+export function borderColor(type) {
+  return BORDER.colors[type] || BORDER.colors.both;
+}
+
+export function statusBorderColor(done) {
+  return done ? BORDER.status.done : BORDER.status.pending;
+}
