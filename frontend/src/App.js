@@ -28,7 +28,9 @@ function App() {
   }, [auth]);
 
   const loadData = async () => {
+    console.log('Chargement des données...');
     const [arr, stat] = await Promise.all([fetchArrivals(), fetchStatuses()]);
+    console.log('Données chargées avec succès');
     setData(arr);
     setStatuses(stat);
   };

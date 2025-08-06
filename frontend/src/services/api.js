@@ -1,9 +1,12 @@
 const ARRIVALS_URL = process.env.REACT_APP_API_URL || '/api/arrivals';
+console.log('ARRIVALS_URL:', ARRIVALS_URL);
 const STATUS_URL = '/api/statuses';
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
+  console.log('fetchArrivals:', ARRIVALS_URL);
   if (!res.ok) throw new Error('HTTP ' + res.status);
+  console.log('fetchArrivals response:', res);
   return res.json();
 }
 
