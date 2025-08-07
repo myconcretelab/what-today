@@ -7,9 +7,10 @@ export const COLORS = {
     default: '#9E9E9E'
   },
   events: {
-    arrival: '#bee6daff',
-    depart: '#e6c1c1ff',
-    both: '#6bb3dcff'
+    arrival: '#ffa69e',
+    depart: '#b8f2e6',
+    both: '#faf3dd',
+    done: '#aed9e0'
   }
 };
 
@@ -48,7 +49,7 @@ export const BORDER = {
     both: COLORS.events.both
   },
   status: {
-    done: COLORS.events.arrival,
+    done: COLORS.events.done,
     pending: COLORS.events.depart
   }
 };
