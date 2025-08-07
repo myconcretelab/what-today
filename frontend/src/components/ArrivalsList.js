@@ -83,7 +83,9 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   const groupes = {
     today: events.filter(b => b.date.isSame(today, 'day')),
     tomorrow: events.filter(b => b.date.isSame(tomorrow, 'day')),
-    next: events.filter(b => b.date.isAfter(tomorrow, 'day'))
+    next: events.filter(
+      b => b.date.isAfter(tomorrow, 'day') && b.date.diff(today, 'day') <= 7
+    )
   };
 
   return (
@@ -101,14 +103,17 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const status = statuses[ev.id]?.done;
                 const user = statuses[ev.id]?.user;
                 const bg = eventColor(ev.type);
-                const textColor = theme.palette.getContrastText(bg);
+                const itemBg = status ? theme.palette.grey[200] : bg;
+                const textColor = status
+                  ? theme.palette.text.primary
+                  : theme.palette.getContrastText(itemBg);
 
                 const bw = borderWidth(ev.type);
                 return (
                   <ListItem
                     key={ev.id}
                     sx={{
-                      bgcolor: bg,
+                      bgcolor: itemBg,
                       color: textColor,
                       mb: 1,
                       border: `${bw}px solid`,
@@ -177,15 +182,18 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
               const color = sourceColor(ev.source);
               const initial = giteInitial(ev.giteId);
               const bg = eventColor(ev.type);
-              const textColor = theme.palette.getContrastText(bg);
               const status = statuses[ev.id]?.done;
               const user = statuses[ev.id]?.user;
+              const itemBg = status ? theme.palette.grey[200] : bg;
+              const textColor = status
+                ? theme.palette.text.primary
+                : theme.palette.getContrastText(itemBg);
               const bw = borderWidth(ev.type);
               return (
                 <ListItem
                   key={ev.id}
                   sx={{
-                    bgcolor: bg,
+                    bgcolor: itemBg,
                     color: textColor,
                     mb: 1,
                     border: `${bw}px solid`,
