@@ -53,7 +53,6 @@ const GITES = [
     nom: 'Gîte Le Liberté',
     couleur: '#8E24AA', // violet
     sources: [
-      { url: 'https://www.airbnb.fr/calendar/ical/1182344118629001592.ics?s=641548df33ebc6bf6b5f383c7aec25ac', type: 'Airbnb' },
       { url: 'https://www.airbnb.fr/calendar/ical/48504640.ics?s=c27d399e029a03b6b4dd791fbf026fee', type: 'Airbnb' },
       { url: 'http://www.abritel.fr/icalendar/094a7b5f6cf345f9b51940e07e588ab2.ics', type: 'Abritel' },
       { url: 'https://reservation.itea.fr/iCal_70b69a7451324ef50d43907fdb8b5c81.ics?aicc=f3792c7c79df6c160a2518bf3c55e9e6', type: 'Gites de France' }
@@ -107,7 +106,9 @@ async function chargerCalendriers() {
         const res = await fetch(source.url, {
                 headers: {
                   'User-Agent':
-                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
                 }
               });
         const retryAfter = res.headers.get('retry-after');
@@ -137,10 +138,11 @@ async function chargerCalendriers() {
               giteNom: gite.nom,
               couleur: gite.couleur,
               source: typeSource,
-              debut: ev.start, // Date d'arrivée
-              fin: ev.end,
-              resume: ev.summary || ''
+        debut: formatIcalDate(ev.start), // Date d'arrivée, fiable !
+        fin: formatIcalDate(ev.end),     // Date de départ (le client part ce matin-là)
+                    resume: ev.summary || ''
             });
+            // console.log("DEBUG ev.start", ev.start, ev.start.toISOString());
           }
         }
         console.log('Chargement réussi pour', gite.nom, 'depuis', source.type);
@@ -161,6 +163,25 @@ async function chargerCalendriers() {
     return debut.isBefore(limite) && fin.isAfter(aujourdHui.subtract(1, 'day'));
   });
 }
+
+function formatIcalDate(d) {
+  if (!d) return null;
+
+  // Cas typique : Date iCal "all-day" → 22h UTC (minuit Paris)
+  // On force la date à Europe/Paris, puis on récupère la date locale
+  const local = new Date(d.getTime() + (2 * 60 * 60 * 1000)); // +2h (été)
+  // Optionnel : détecte si l'heure est 22h ou 23h pour gérer l’hiver
+  let hour = d.getUTCHours();
+  if (hour === 22) { // Heure d’été
+    return dayjs(d).add(2, 'hour').format('YYYY-MM-DD');
+  }
+  if (hour === 23) { // Heure d’hiver
+    return dayjs(d).add(1, 'hour').format('YYYY-MM-DD');
+  }
+  // Cas normal (heure != 22 ou 23)
+  return dayjs(d).format('YYYY-MM-DD');
+}
+
 
 // Chargement des calendriers au démarrage
 await chargerCalendriers();
