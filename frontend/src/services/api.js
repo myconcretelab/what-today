@@ -1,5 +1,8 @@
-const ARRIVALS_URL = '/api/arrivals';
-const STATUS_URL = '/api/statuses';
+const IS_PROD = process.env.NODE_ENV === 'production';
+const API_BASE = IS_PROD ? '' : 'http://localhost:3001';
+
+const ARRIVALS_URL = `${API_BASE}/api/arrivals`;
+const STATUS_URL = `${API_BASE}/api/statuses`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
