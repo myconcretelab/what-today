@@ -3,7 +3,12 @@ import Login from './components/Login';
 import CalendarBar from './components/CalendarBar';
 import ArrivalsList from './components/ArrivalsList';
 import Loader from './components/Loader';
-import { fetchArrivals, fetchStatuses, updateStatus } from './services/api';
+import {
+  fetchArrivals,
+  fetchStatuses,
+  updateStatus,
+  refreshCalendars
+} from './services/api';
 import { Box } from '@mui/material';
 import Legend from './components/Legend';
 
@@ -52,7 +57,9 @@ function App() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadData().finally(() => setRefreshing(false));
+    refreshCalendars()
+      .then(() => loadData())
+      .finally(() => setRefreshing(false));
   };
 
   if (!auth) return <Login onLogin={handleLogin} />;

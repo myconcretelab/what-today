@@ -3,6 +3,7 @@ const API_BASE = IS_PROD ? '' : 'http://localhost:3001';
 
 const ARRIVALS_URL = `${API_BASE}/api/arrivals`;
 const STATUS_URL = `${API_BASE}/api/statuses`;
+const REFRESH_URL = `${API_BASE}/api/reload-icals`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
@@ -24,6 +25,12 @@ export async function updateStatus(id, done, user) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ done, user })
   });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function refreshCalendars() {
+  const res = await fetch(REFRESH_URL, { method: 'POST' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }

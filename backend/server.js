@@ -174,6 +174,17 @@ app.get('/api/arrivals', (req, res) => {
   });
 });
 
+app.post('/api/reload-icals', async (req, res) => {
+  try {
+    reservations = [];
+    erreurs = new Set();
+    await chargerCalendriers();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Récupération des statuts
 app.get('/api/statuses', (req, res) => {
   res.json(readStatuses());
