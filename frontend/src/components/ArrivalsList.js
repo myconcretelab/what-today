@@ -61,22 +61,39 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
     ];
   });
 
-  // Fusionner entrée et sortie le même jour pour un même gîte
-  const mergedMap = new Map();
+  // Merge arrival and departure only when both exist for the same gite/day
+  const grouped = new Map();
+  const standalone = [];
   initialEvents.forEach(ev => {
-    const key = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
-    const existing = mergedMap.get(key);
-    if (!existing) {
-      mergedMap.set(key, ev);
-    } else {
-      mergedMap.set(key, {
-        ...existing,
-        type: 'both',
-        id: `${key}_both`
-      });
+    if (ev.type === 'both') {
+      standalone.push(ev);
+      return;
     }
+    const key = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
+    const group = grouped.get(key) || { arrivals: [], departs: [] };
+    if (ev.type === 'arrival') {
+      group.arrivals.push(ev);
+    } else if (ev.type === 'depart') {
+      group.departs.push(ev);
+    }
+    grouped.set(key, group);
   });
-  const events = Array.from(mergedMap.values()).sort((a, b) => a.date - b.date);
+  const events = [
+    ...standalone,
+    ...Array.from(grouped.entries()).flatMap(([key, g]) => {
+      if (g.arrivals.length > 0 && g.departs.length > 0) {
+        const a = g.arrivals[0];
+        const d = g.departs[0];
+        // Avoid merging arrival and departure of the same reservation (if UID available)
+        if (a.uid && d.uid && a.uid === d.uid) {
+          return [a, d];
+        }
+        // true turnover: one booking ends and another begins
+        return [{ ...a, type: 'both', id: `${key}_both` }];
+      }
+      return [...g.arrivals, ...g.departs];
+    })
+  ].sort((a, b) => a.date - b.date);
 
   const format = d => d.format('dddd DD/MM');
 
