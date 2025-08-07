@@ -133,14 +133,21 @@ async function chargerCalendriers() {
               typeSource = 'Direct';
             }
 
+            if (
+              source.type === 'Gites de France' &&
+              ev.summary !== 'BOOKED'
+            ) {
+              continue;
+            }
+
             reservations.push({
               giteId: gite.id,
               giteNom: gite.nom,
               couleur: gite.couleur,
               source: typeSource,
-        debut: formatIcalDate(ev.start), // Date d'arrivée, fiable !
-        fin: formatIcalDate(ev.end),     // Date de départ (le client part ce matin-là)
-                    resume: ev.summary || ''
+              debut: formatIcalDate(ev.start), // Date d'arrivée, fiable !
+              fin: formatIcalDate(ev.end),     // Date de départ (le client part ce matin-là)
+              resume: ev.summary || ''
             });
             // console.log("DEBUG ev.start", ev.start, ev.start.toISOString());
           }
