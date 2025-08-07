@@ -152,13 +152,14 @@ async function chargerCalendriers() {
     }
   }
 
-  // Filtrage sur les 7 prochains jours
+  // Filtrage des événements qui chevauchent les 7 prochains jours
   const aujourdHui = dayjs().startOf('day');
   const limite = aujourdHui.add(7, 'day');
-  reservations = reservations.filter(ev =>
-    dayjs(ev.debut).isAfter(aujourdHui.subtract(1, 'day')) &&
-    dayjs(ev.debut).isBefore(limite)
-  );
+  reservations = reservations.filter(ev => {
+    const debut = dayjs(ev.debut);
+    const fin = dayjs(ev.fin);
+    return debut.isBefore(limite) && fin.isAfter(aujourdHui.subtract(1, 'day'));
+  });
 }
 
 // Chargement des calendriers au démarrage
