@@ -72,10 +72,14 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
             {availability.map(g => (
               <Card key={g.id} sx={{ p: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography>{g.name}</Typography>
+                  <Typography sx={{ color: g.free ? '#64b5f6' : '#f48fb1' }}>{g.name}</Typography>
                   <Chip
                     label={g.free ? 'Libre' : 'Occupé'}
-                    color={g.free ? 'success' : 'error'}
+                    variant="outlined"
+                    sx={{
+                      color: g.free ? '#64b5f6' : '#f48fb1',
+                      borderColor: g.free ? '#64b5f6' : '#f48fb1'
+                    }}
                     size="small"
                   />
                 </Box>
