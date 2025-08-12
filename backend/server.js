@@ -12,9 +12,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Petite fonction utilitaire pour temporiser des actions asynchrones
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
 // Configuration locale française pour dayjs
 // permet d'avoir des dates formatées "lundi 31/12/2025"
 dayjs.locale('fr');
@@ -87,30 +84,15 @@ let erreurs = new Set();
  * Cette fonction est exécutée une seule fois au démarrage du serveur.
  */
 async function chargerCalendriers() {
-  // mémorise la date de la dernière requête ical Airbnb
-  let dernierFetchAirbnb = 0;
-
   for (const gite of GITES) {
     for (const source of gite.sources) {
       try {
-        // Si la source provient d'Airbnb, on s'assure qu'au moins 500 ms se sont écoulées
-        if (source.type === 'Airbnb') {
-          const now = Date.now();
-          const attente = 100 - (now - dernierFetchAirbnb);
-          if (attente > 0) {
-            await sleep(attente);
-          }
-          dernierFetchAirbnb = Date.now();
-        }
-
         const res = await fetch(source.url, {
-                headers: {
-                  'User-Agent':
-                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-              });
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+          }
+        });
         const retryAfter = res.headers.get('retry-after');
         if (retryAfter) {
           console.log('Retry-After reçu pour', source.url, ':', retryAfter);
