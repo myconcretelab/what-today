@@ -13,8 +13,8 @@ export default function useAvailability(bookings, arrival, departure) {
     if (!arrival || !departure) return [];
     const arr = dayjs(arrival).startOf('day');
     const dep = dayjs(departure).startOf('day');
-    const rangeStart = arr.subtract(3, 'day');
-    const rangeEnd = dep.add(3, 'day');
+    const rangeStart = arr.subtract(1, 'day');
+    const rangeEnd = dep.add(1, 'day');
     const days = [];
     for (let d = rangeStart; !d.isAfter(rangeEnd); d = d.add(1, 'day')) {
       days.push(d);

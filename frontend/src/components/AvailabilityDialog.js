@@ -107,7 +107,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                         color: s.busy ? '#f48fb1' : '#64b5f6'
                       }}
                     >
-                      {dayjs(s.date).format('DD/MM')}
+                      {dayjs(s.date).format('DD')}
                     </Typography>
                   ))}
                 </Box>
