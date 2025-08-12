@@ -14,6 +14,13 @@ export const COLORS = {
   }
 };
 
+export const GITES = [
+  { id: 'phonsine', name: 'Gîte de Phonsine' },
+  { id: 'liberte', name: 'Gîte Le Liberté' },
+  { id: 'gree', name: 'Gîte de la Grée' },
+  { id: 'edmond', name: "Gîte de l'oncle Edmond" }
+];
+
 export function sourceColor(type) {
   return COLORS.sources[type] || COLORS.sources.default;
 }

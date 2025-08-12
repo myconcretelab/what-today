@@ -161,13 +161,15 @@ async function chargerCalendriers() {
     }
   }
 
-  // Filtrage des événements qui chevauchent les 7 prochains jours
-  const aujourdHui = dayjs().startOf('day');
-  const limite = aujourdHui.add(7, 'day');
+  // Filtrage des événements qui chevauchent la période
+  // allant de J-5 au 31 décembre de l'année courante.
+  const today = dayjs().startOf('day');
+  const startWindow = today.subtract(5, 'day');
+  const endWindow = today.endOf('year');
   reservations = reservations.filter(ev => {
     const debut = dayjs(ev.debut);
     const fin = dayjs(ev.fin);
-    return debut.isBefore(limite) && fin.isAfter(aujourdHui.subtract(1, 'day'));
+    return debut.isBefore(endWindow.add(1, 'day')) && fin.isAfter(startWindow);
   });
 }
 
@@ -195,10 +197,18 @@ await chargerCalendriers();
 
 // --- Endpoint JSON ---
 app.get('/api/arrivals', (req, res) => {
+  const today = dayjs().startOf('day');
+  const startWindow = today.subtract(5, 'day');
+  const endWindow = today.endOf('year');
+  const dates = [];
+  for (let d = startWindow; !d.isAfter(endWindow); d = d.add(1, 'day')) {
+    dates.push(d.format('YYYY-MM-DD'));
+  }
   res.json({
     genereLe: new Date().toISOString(),
     reservations,
-    erreurs: Array.from(erreurs)
+    erreurs: Array.from(erreurs),
+    dates
   });
 });
 
