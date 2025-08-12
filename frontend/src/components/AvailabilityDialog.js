@@ -14,6 +14,10 @@ import CloseIcon from '@mui/icons-material/Close';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import useAvailability from '../hooks/useAvailability';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+
+// Activer le plugin
+dayjs.extend(isSameOrAfter);
 
 export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [arrival, setArrival] = useState(dayjs());
