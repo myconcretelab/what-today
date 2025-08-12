@@ -76,24 +76,36 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                   />
                 </Box>
                 <Box sx={{ display: 'flex', mt: 1 }}>
+                  {g.segments.map(s => {
+                    const isSelected =
+                      dayjs(s.date).isSameOrAfter(arrival, 'day') &&
+                      dayjs(s.date).isBefore(departure, 'day');
+                    return (
+                      <Box
+                        key={s.date}
+                        sx={{
+                          flex: 1,
+                          height: isSelected ? 8 : 4,
+                          bgcolor: s.busy ? '#f48fb1' : '#64b5f6'
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+                <Box sx={{ display: 'flex', mt: 0.5 }}>
                   {g.segments.map(s => (
-                    <Box
+                    <Typography
                       key={s.date}
+                      variant="caption"
                       sx={{
                         flex: 1,
-                        height: 8,
-                        bgcolor: s.busy ? '#f48fb1' : '#64b5f6'
+                        textAlign: 'center',
+                        color: s.busy ? '#f48fb1' : '#64b5f6'
                       }}
-                    />
+                    >
+                      {dayjs(s.date).format('DD/MM')}
+                    </Typography>
                   ))}
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {g.segments[0].date}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {g.segments[g.segments.length - 1].date}
-                  </Typography>
                 </Box>
               </Card>
             ))}
