@@ -11,6 +11,7 @@ import {
 } from './services/api';
 import { Box } from '@mui/material';
 import Legend from './components/Legend';
+import AvailabilityDialog from './components/AvailabilityDialog';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
@@ -25,6 +26,7 @@ function App() {
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
 
   // Chargement des données après authentification
   useEffect(() => {
@@ -77,12 +79,18 @@ function App() {
         }}
         onRefresh={handleRefresh}
         refreshing={refreshing}
+        onOpenAvailability={() => setAvailabilityOpen(true)}
       />
       <ArrivalsList
         bookings={data.reservations}
         errors={data.erreurs}
         statuses={statuses}
         onStatusChange={handleStatusChange}
+      />
+      <AvailabilityDialog
+        open={availabilityOpen}
+        onClose={() => setAvailabilityOpen(false)}
+        bookings={data.reservations}
       />
     </Box>
   );
