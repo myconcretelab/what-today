@@ -112,27 +112,36 @@ const SCHOOL_DATASET_BASE =
 async function fetchHolidaysForYear(year, opts = {}) {
   const { zones = ['A','B','C'], population = null } = opts;
   const academicYear = `${year}-${year + 1}`;
+  const pageSize = 100; // MAX autorisé par l’API
+  let offset = 0;
 
-  const params = new URLSearchParams({
-    limit: '100',
-    order_by: 'start_date',
-  });
-
-  // Important: utiliser refine plutôt que where
-  params.append('refine', `annee_scolaire:${academicYear}`);
-  if (population) params.append('refine', `population:${population}`);
-
-  const url = `${SCHOOL_DATASET_BASE}?${params.toString()}`;
+  const allRows = [];
 
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    while (true) {
+      const params = new URLSearchParams({
+        limit: String(pageSize),
+        offset: String(offset),
+        order_by: 'start_date',
+      });
+      params.append('refine', `annee_scolaire:${academicYear}`);
+      if (population) params.append('refine', `population:${population}`);
 
-    const json = await res.json();
-    const results = Array.isArray(json.results) ? json.results : [];
+      const url = `${SCHOOL_DATASET_BASE}?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+      const json = await res.json();
+      const chunk = Array.isArray(json.results) ? json.results : [];
+      allRows.push(...chunk);
+
+      if (chunk.length < pageSize) break; // dernière page atteinte
+      offset += pageSize;
+    }
+
+    // Normalisation
     const holidays = [];
-    for (const item of results) {
+    for (const item of allRows) {
       const rawZones = (item.zones ?? '').toString();
       const normalizedZones = rawZones
         .split(/[/,;]| et /i)
@@ -140,7 +149,7 @@ async function fetchHolidaysForYear(year, opts = {}) {
         .filter(Boolean)
         .map(z => z.replace(/Zone\s*/i, '').trim()); // "Zone A" -> "A"
 
-      const start = (item.start_date || '').slice(0, 10); // YYYY-MM-DD
+      const start = (item.start_date || '').slice(0, 10);
       const end   = (item.end_date   || '').slice(0, 10);
       const description =
         item.description || item.vacances || item.intitule || '';
@@ -161,10 +170,12 @@ async function fetchHolidaysForYear(year, opts = {}) {
     }
 
     holidaysCache[year] = holidays;
-    console.log(`Fetched ${holidays.length} holiday items for ${academicYear} (${year})`);
+    console.log(
+      `Fetched ${holidays.length} holiday items from ${allRows.length} rows for ${academicYear} (${year})`
+    );
     return holidays;
   } catch (err) {
-    console.error(`Failed to fetch holidays for ${year} ${err.message}\nURL: ${url}`);
+    console.error(`Failed to fetch holidays for ${year} ${err.message}`);
     holidaysCache[year] = [];
     return [];
   }

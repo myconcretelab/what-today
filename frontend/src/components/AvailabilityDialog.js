@@ -124,9 +124,9 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
     const isSelected = !d.isBefore(arrival, 'day') && !d.isAfter(departure, 'day');
     let backgroundColor;
     if (isSelected && isHoliday) {
-      backgroundColor = '#90caf9';
+      backgroundColor = '#8a73fbff';
     } else if (isHoliday) {
-      backgroundColor = '#ffd2a5';
+      backgroundColor = '#ffe1a5ff';
     }
     return (
       <div
