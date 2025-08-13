@@ -20,6 +20,32 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// --- Configuration de l'API Google Sheets ---
+const auth = new google.auth.GoogleAuth({
+    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Chemin vers votre fichier JSON de credentials
+    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'], // Scope pour la lecture seule
+});
+const spreadsheetId = process.env.SPREAD_SHEET_ID;
+
+
+// Lecture d'une feuille sans les en-têtes, avec évaluation des formules
+async function lireFeuille(feuille) {
+  const donnees = [];
+
+  feuille.eachRow((row, rowNumber) => {
+    if (row.actualCellCount === 0) return;
+
+    const valeurs = row.values.slice(1).map(cell => {
+      let valeur = (cell && typeof cell === 'object' && 'result' in cell) ? cell.result : cell;
+      return formaterDate(valeur);
+    });
+
+    donnees.push(valeurs);
+  });
+
+  return donnees.slice(1); // Ignorer les en-têtes
+}
+
 // Fichier de stockage des statuts
 const STATUS_FILE = path.join(__dirname, 'statuses.json');
 
