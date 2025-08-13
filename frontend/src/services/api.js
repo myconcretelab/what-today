@@ -4,6 +4,7 @@ const API_BASE = IS_PROD ? '' : 'http://localhost:3001';
 const ARRIVALS_URL = `${API_BASE}/api/arrivals`;
 const STATUS_URL = `${API_BASE}/api/statuses`;
 const REFRESH_URL = `${API_BASE}/api/reload-icals`;
+export const SAVE_RESERVATION = `${API_BASE}/api/save-reservation`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);

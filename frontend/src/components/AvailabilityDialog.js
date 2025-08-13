@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import useAvailability from '../hooks/useAvailability';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import { SAVE_RESERVATION } from '../services/api.js';
 
 // Activer le plugin
 dayjs.extend(isSameOrAfter);
@@ -84,6 +85,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
 
   const handleSave = async () => {
     if (!selectedGite) return;
+    console.log(SAVE_RESERVATION);
     const payload = {
       giteId: selectedGite.id,
       name,
@@ -91,7 +93,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
       end: departure.format('DD/MM/YYYY'),
       summary: info.replace(/\n/g, ' ')
     };
-    await fetch('/api/save-reservation', {
+    await fetch(SAVE_RESERVATION, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -269,13 +271,13 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                 placeholder="00 00 00 00 00"
                 inputProps={{ inputMode: 'numeric' }}
                 sx={{ mb: 1 }}
-              />
+              />&nbsp;&nbsp;
               <TextField
                 label="Nom/prénom"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 sx={{ mb: 1 }}
-              />
+              />&nbsp;&nbsp;
               <FormControlLabel
                 control={<Checkbox checked={draps} onChange={e => setDraps(e.target.checked)} />}
                 label="Draps"

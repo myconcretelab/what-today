@@ -1,17 +1,22 @@
+import dotenv from 'dotenv'; // Change from require('dotenv')
 import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
 import ical from 'node-ical';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat.js'; // <-- Add this line
 import 'dayjs/locale/fr.js';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
+
 // Pour avoir __dirname en ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, './.env') }); // <-- Changed line
 
 // Configuration locale française pour dayjs
 // permet d'avoir des dates formatées "lundi 31/12/2025"
