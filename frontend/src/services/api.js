@@ -6,6 +6,7 @@ const STATUS_URL = `${API_BASE}/api/statuses`;
 const REFRESH_URL = `${API_BASE}/api/reload-icals`;
 export const SAVE_RESERVATION = `${API_BASE}/api/save-reservation`;
 const HOLIDAYS_URL = `${API_BASE}/api/school-holidays`;
+const PUBLIC_HOLIDAYS_URL = 'https://calendrier.api.gouv.fr/jours-feries/metropole.json';
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
@@ -39,6 +40,12 @@ export async function refreshCalendars() {
 
 export async function fetchSchoolHolidays() {
   const res = await fetch(HOLIDAYS_URL);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function fetchPublicHolidays() {
+  const res = await fetch(PUBLIC_HOLIDAYS_URL);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }

@@ -24,7 +24,11 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import useAvailability from '../hooks/useAvailability';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import { SAVE_RESERVATION, fetchSchoolHolidays } from '../services/api.js';
+import {
+  SAVE_RESERVATION,
+  fetchSchoolHolidays,
+  fetchPublicHolidays
+} from '../services/api.js';
 
 // Activer le plugin
 dayjs.extend(isSameOrAfter);
@@ -50,6 +54,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const availability = useAvailability(bookings, arrival, departure, range);
   const [holidayDates, setHolidayDates] = useState(new Set());
+  const [publicHolidayDates, setPublicHolidayDates] = useState(new Set());
 
   useEffect(() => {
     const parts = [];
@@ -71,6 +76,14 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
           }
         });
         setHolidayDates(dates);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchPublicHolidays()
+      .then(data => {
+        setPublicHolidayDates(new Set(Object.keys(data)));
       })
       .catch(() => {});
   }, []);
@@ -119,13 +132,18 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
 
   const renderDayContent = date => {
     const formatted = dayjs(date).format('YYYY-MM-DD');
-    const isHoliday = holidayDates.has(formatted);
+    const isVacation = holidayDates.has(formatted);
+    const isPublicHoliday = publicHolidayDates.has(formatted);
     const d = dayjs(date);
     const isSelected = !d.isBefore(arrival, 'day') && !d.isAfter(departure, 'day');
     let backgroundColor;
-    if (isSelected && isHoliday) {
+    if (isSelected && isPublicHoliday) {
       backgroundColor = '#8a73fbff';
-    } else if (isHoliday) {
+    } else if (isPublicHoliday) {
+      backgroundColor = '#ffe1a5ff';
+    } else if (isSelected && isVacation) {
+      backgroundColor = '#8a73fbff';
+    } else if (isVacation) {
       backgroundColor = '#ffe1a5ff';
     }
     return (
