@@ -82,6 +82,22 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
     setShowReservation(true);
   };
 
+  const handleSave = async () => {
+    if (!selectedGite) return;
+    const payload = {
+      giteId: selectedGite.id,
+      name,
+      start: arrival.format('DD/MM/YYYY'),
+      end: departure.format('DD/MM/YYYY'),
+      summary: info.replace(/\n/g, ' ')
+    };
+    await fetch('/api/save-reservation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  };
+
   const reservationText = selectedGite
     ? `Bonjour,\nJe vous confirme votre réservation pour le gîte ${GITE_LABELS[selectedGite.id]} du ${arrival
         .locale('fr')
@@ -273,13 +289,23 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                 InputProps={{ readOnly: true }}
                 sx={{ mb: 1 }}
               />
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => navigator.clipboard.writeText(info)}
-              >
-                Copier
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => navigator.clipboard.writeText(info)}
+                >
+                  Copier
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  color="success"
+                  onClick={handleSave}
+                >
+                  Sauvegarder
+                </Button>
+              </Box>
             </DialogContent>
           </Box>
         </Box>
