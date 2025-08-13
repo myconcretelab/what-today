@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -11,7 +11,9 @@ import {
   TextField,
   MenuItem,
   Button,
-  Popover
+  Popover,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
@@ -40,9 +42,26 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [range, setRange] = useState(1);
   const [showReservation, setShowReservation] = useState(false);
   const [selectedGite, setSelectedGite] = useState(null);
-  const [note, setNote] = useState('');
+  const [info, setInfo] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [draps, setDraps] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const availability = useAvailability(bookings, arrival, departure, range);
+
+  useEffect(() => {
+    const parts = [];
+    if (name) parts.push(`Nom/prénom: ${name}`);
+    if (phone) parts.push(`Téléphone: ${phone}`);
+    parts.push(`Draps: ${draps ? 'oui' : 'non'}`);
+    setInfo(parts.join('\n'));
+  }, [name, phone, draps]);
+
+  const handlePhoneChange = e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+    const formatted = digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+    setPhone(formatted);
+  };
 
   const handleOpenPicker = event => {
     setAnchorEl(event.currentTarget);
@@ -210,6 +229,9 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
               Réservation
             </DialogTitle>
             <DialogContent>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                SMS
+              </Typography>
               <Box sx={{ border: '1px solid', borderColor: 'grey.400', borderRadius: 1, p: 2, mb: 1 }}>
                 <Typography sx={{ whiteSpace: 'pre-line' }}>{reservationText}</Typography>
               </Box>
@@ -221,15 +243,41 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
               >
                 Copier
               </Button>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Infos Résa
+              </Typography>
+              <TextField
+                label="Téléphone"
+                value={phone}
+                onChange={handlePhoneChange}
+                placeholder="00 00 00 00 00"
+                inputProps={{ inputMode: 'numeric' }}
+                sx={{ mb: 1 }}
+              />
+              <TextField
+                label="Nom/prénom"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                sx={{ mb: 1 }}
+              />
+              <FormControlLabel
+                control={<Checkbox checked={draps} onChange={e => setDraps(e.target.checked)} />}
+                label="Draps"
+                sx={{ mb: 1 }}
+              />
               <TextField
                 multiline
                 rows={4}
                 fullWidth
-                value={note}
-                onChange={e => setNote(e.target.value)}
+                value={info}
+                InputProps={{ readOnly: true }}
                 sx={{ mb: 1 }}
               />
-              <Button variant="contained" size="small" onClick={() => navigator.clipboard.writeText(note)}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => navigator.clipboard.writeText(info)}
+              >
                 Copier
               </Button>
             </DialogContent>
