@@ -128,8 +128,8 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isHoliday ? '#fff9c4' : undefined,
-          borderRadius: '50%'
+          backgroundColor: isHoliday ? '#ffd2a5ff' : undefined,
+          borderRadius: '5%'
         }}
       >
         {dayjs(date).date()}

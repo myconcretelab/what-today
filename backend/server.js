@@ -98,37 +98,77 @@ function writeStatuses(data) {
 // --- School holidays cache ---
 const holidaysCache = {};
 
-async function fetchHolidaysForYear(year) {
+
+
+const SCHOOL_DATASET_BASE =
+  'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
+
+/**
+ * @param {number} year - ex: 2025 -> "2025-2026"
+ * @param {Object} [opts]
+ * @param {string[]} [opts.zones=['A','B','C']]  // filtrage côté client
+ * @param {string|null} [opts.population=null]   // ex: "Élèves" | "Enseignants" (pas de filtre si null)
+ */
+async function fetchHolidaysForYear(year, opts = {}) {
+  const { zones = ['A','B','C'], population = null } = opts;
   const academicYear = `${year}-${year + 1}`;
-  const url =
-    'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records' +
-    `?limit=100&where=annee%3D%22${academicYear}%22`;
+
+  const params = new URLSearchParams({
+    limit: '100',
+    order_by: 'start_date',
+  });
+
+  // Important: utiliser refine plutôt que where
+  params.append('refine', `annee_scolaire:${academicYear}`);
+  if (population) params.append('refine', `population:${population}`);
+
+  const url = `${SCHOOL_DATASET_BASE}?${params.toString()}`;
+
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
     const json = await res.json();
-    const records = json.records || [];
+    const results = Array.isArray(json.results) ? json.results : [];
+
     const holidays = [];
-    records.forEach(r => {
-      const zones = (r.zones || '')
-        .split(',')
-        .map(z => z.trim().replace('Zone ', ''));
-      zones.forEach(z => {
+    for (const item of results) {
+      const rawZones = (item.zones ?? '').toString();
+      const normalizedZones = rawZones
+        .split(/[/,;]| et /i)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(z => z.replace(/Zone\s*/i, '').trim()); // "Zone A" -> "A"
+
+      const start = (item.start_date || '').slice(0, 10); // YYYY-MM-DD
+      const end   = (item.end_date   || '').slice(0, 10);
+      const description =
+        item.description || item.vacances || item.intitule || '';
+      const recordPopulation = item.population || '';
+
+      const zonesToPush = normalizedZones.length ? normalizedZones : [''];
+      for (const z of zonesToPush) {
+        if (z && zones.length && !zones.includes(z)) continue;
         holidays.push({
-          zone: z,
-          start: r.start_date,
-          end: r.end_date,
-          description: r.description
+          zone: z || '—',
+          start,
+          end,
+          description,
+          anneeScolaire: item.annee_scolaire || academicYear,
+          population: recordPopulation,
         });
-      });
-    });
+      }
+    }
+
     holidaysCache[year] = holidays;
+    console.log(`Fetched ${holidays.length} holiday items for ${academicYear} (${year})`);
+    return holidays;
   } catch (err) {
-    console.error('Failed to fetch holidays for', year, err.message);
+    console.error(`Failed to fetch holidays for ${year} ${err.message}\nURL: ${url}`);
     holidaysCache[year] = [];
+    return [];
   }
 }
-
 async function initHolidays() {
   const currentYear = dayjs().year();
   const years = [currentYear, currentYear + 1];
@@ -311,7 +351,7 @@ app.post('/api/reload-icals', async (req, res) => {
 
 app.get('/api/school-holidays', (req, res) => {
   const year = parseInt(req.query.year, 10) || dayjs().year();
-  const zone = req.query.zone ? req.query.zone.toUpperCase() : null;
+  const zone = req.query.zone ? req.query.zone.toUpperCase() : 'B';
   const data = holidaysCache[year] || [];
   const filtered = zone ? data.filter(h => h.zone === zone) : data;
   res.json(filtered);
