@@ -10,9 +10,12 @@ import {
   Card,
   TextField,
   MenuItem,
-  Button
+  Button,
+  Popover
 } from '@mui/material';
-import DateRangePicker from 'mui-daterange-picker';
+import { DateRange } from 'react-date-range';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import dayjs from 'dayjs';
@@ -38,11 +41,15 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [showReservation, setShowReservation] = useState(false);
   const [selectedGite, setSelectedGite] = useState(null);
   const [note, setNote] = useState('');
-  const [openPicker, setOpenPicker] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
   const availability = useAvailability(bookings, arrival, departure, range);
 
-  const togglePicker = () => {
-    setOpenPicker(!openPicker);
+  const handleOpenPicker = event => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClosePicker = () => {
+    setAnchorEl(null);
   };
 
   const handleRangeChange = newRange => {
@@ -92,14 +99,22 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                 <TextField
                   label="Période"
                   value={`${arrival.format('YYYY-MM-DD')} - ${departure.format('YYYY-MM-DD')}`}
-                  onClick={togglePicker}
+                  onClick={handleOpenPicker}
                   InputProps={{ readOnly: true }}
                 />
-                <DateRangePicker
-                  open={openPicker}
-                  toggle={togglePicker}
-                  onChange={handleRangeChange}
-                />
+                <Popover
+                  open={Boolean(anchorEl)}
+                  anchorEl={anchorEl}
+                  onClose={handleClosePicker}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                >
+                  <DateRange
+                    ranges={[
+                      { startDate: arrival.toDate(), endDate: departure.toDate(), key: 'selection' }
+                    ]}
+                    onChange={item => handleRangeChange(item.selection)}
+                  />
+                </Popover>
                 <TextField
                   select
                   label="Plage"
