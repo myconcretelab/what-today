@@ -8,7 +8,8 @@ import {
   Chip,
   Typography,
   Card,
-  TextField
+  TextField,
+  MenuItem
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import dayjs from 'dayjs';
@@ -22,7 +23,8 @@ dayjs.extend(isSameOrAfter);
 export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [arrival, setArrival] = useState(dayjs());
   const [departure, setDeparture] = useState(dayjs().add(1, 'day'));
-  const availability = useAvailability(bookings, arrival, departure);
+  const [range, setRange] = useState(1);
+  const availability = useAvailability(bookings, arrival, departure, range);
 
   const handleArrival = date => {
     if (!date) return;
@@ -66,6 +68,17 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
             InputLabelProps={{ shrink: true }}
             inputProps={{ min: arrival.add(1, 'day').format('YYYY-MM-DD') }}
           />
+          <TextField
+            select
+            label="Plage"
+            value={range}
+            onChange={e => setRange(Number(e.target.value))}
+          >
+            <MenuItem value={1}>1 jour</MenuItem>
+            <MenuItem value={2}>2 jours</MenuItem>
+            <MenuItem value={3}>3 jours</MenuItem>
+            <MenuItem value={4}>4 jours</MenuItem>
+          </TextField>
         </Box>
         {availability.length > 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
