@@ -96,7 +96,22 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                     size="small"
                   />
                 </Box>
-                <Box sx={{ display: 'flex', mt: 1 }}>
+                <Box sx={{ display: 'flex', mb: 0.5 }}>
+                  {g.segments.map(s => (
+                    <Typography
+                      key={s.date}
+                      variant="caption"
+                      sx={{
+                        flex: 1,
+                        textAlign: 'center',
+                        color: s.busy ? '#f48fb1' : '#64b5f6'
+                      }}
+                    >
+                      {dayjs(s.date).format('dd')[0].toLowerCase()}
+                    </Typography>
+                  ))}
+                </Box>
+                <Box sx={{ display: 'flex', mt: 0.5 }}>
                   {g.segments.map(s => {
                     const isSelected =
                       dayjs(s.date).isSameOrAfter(arrival, 'day') &&
