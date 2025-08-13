@@ -120,6 +120,14 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const renderDayContent = date => {
     const formatted = dayjs(date).format('YYYY-MM-DD');
     const isHoliday = holidayDates.has(formatted);
+    const d = dayjs(date);
+    const isSelected = !d.isBefore(arrival, 'day') && !d.isAfter(departure, 'day');
+    let backgroundColor;
+    if (isSelected && isHoliday) {
+      backgroundColor = '#90caf9';
+    } else if (isHoliday) {
+      backgroundColor = '#ffd2a5';
+    }
     return (
       <div
         style={{
@@ -128,11 +136,12 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isHoliday ? '#ffd2a5ff' : undefined,
+          backgroundColor,
+          color: isSelected ? '#fff' : '#555',
           borderRadius: '5%'
         }}
       >
-        {dayjs(date).date()}
+        {d.date()}
       </div>
     );
   };
