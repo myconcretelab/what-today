@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr.js';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 // Pour avoir __dirname en ES modules
@@ -14,36 +15,67 @@ const __dirname = path.dirname(__filename);
 
 // Configuration locale française pour dayjs
 // permet d'avoir des dates formatées "lundi 31/12/2025"
+dayjs.extend(customParseFormat);
 dayjs.locale('fr');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Configuration de l'API Google Sheets ---
-const auth = new google.auth.GoogleAuth({
-    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Chemin vers votre fichier JSON de credentials
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'], // Scope pour la lecture seule
-});
 const spreadsheetId = process.env.SPREAD_SHEET_ID;
+const SHEET_NAMES = {
+  phonsine: 'Phonsine',
+  gree: 'Gree',
+  edmond: 'Edmond',
+  liberte: 'Liberté'
+};
 
+function base64url(str) {
+  return Buffer.from(str)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
 
-// Lecture d'une feuille sans les en-têtes, avec évaluation des formules
-async function lireFeuille(feuille) {
-  const donnees = [];
+async function getAccessToken() {
+  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const creds = JSON.parse(fs.readFileSync(keyPath, 'utf-8'));
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claim = base64url(
+    JSON.stringify({
+      iss: creds.client_email,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600,
+      iat: now
+    })
+  );
+  const unsigned = `${header}.${claim}`;
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(unsigned);
+  const signature = base64url(sign.sign(creds.private_key));
+  const jwt = `${unsigned}.${signature}`;
 
-  feuille.eachRow((row, rowNumber) => {
-    if (row.actualCellCount === 0) return;
-
-    const valeurs = row.values.slice(1).map(cell => {
-      let valeur = (cell && typeof cell === 'object' && 'result' in cell) ? cell.result : cell;
-      return formaterDate(valeur);
-    });
-
-    donnees.push(valeurs);
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
   });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Token request failed');
+  return data.access_token;
+}
 
-  return donnees.slice(1); // Ignorer les en-têtes
+async function getSheetId(sheetName, token) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  const sheet = data.sheets.find(s => s.properties.title === sheetName);
+  return sheet.properties.sheetId;
 }
 
 // Fichier de stockage des statuts
@@ -241,6 +273,78 @@ app.post('/api/statuses/:id', (req, res) => {
   statuses[req.params.id] = { done: req.body.done, user: req.body.user };
   writeStatuses(statuses);
   res.json(statuses[req.params.id]);
+});
+
+app.post('/api/save-reservation', async (req, res) => {
+  try {
+    const { giteId, name, start, end, summary } = req.body;
+    const sheetName = SHEET_NAMES[giteId];
+    if (!sheetName) return res.status(400).json({ success: false, error: 'Invalid gite' });
+
+    const token = await getAccessToken();
+    const sheetId = await getSheetId(sheetName, token);
+
+    const valueRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:C`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const valueData = await valueRes.json();
+    const rows = valueData.values || [];
+    const startDate = dayjs(start, 'DD/MM/YYYY');
+    const endDate = dayjs(end, 'DD/MM/YYYY');
+
+    let idx = rows.findIndex(r => {
+      const rowStart = dayjs(r[0], 'DD/MM/YYYY');
+      const rowEnd = dayjs(r[1], 'DD/MM/YYYY');
+      return startDate.isBefore(rowStart) || (startDate.isSame(rowStart) && endDate.isBefore(rowEnd));
+    });
+    if (idx === -1) idx = rows.length;
+    const insertRow = idx + 2;
+
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        requests: [
+          {
+            insertDimension: {
+              range: { sheetId, dimension: 'ROWS', startIndex: insertRow - 1, endIndex: insertRow },
+              inheritFromBefore: false
+            }
+          },
+          {
+            repeatCell: {
+              range: {
+                sheetId,
+                startRowIndex: insertRow - 1,
+                endRowIndex: insertRow,
+                startColumnIndex: 0,
+                endColumnIndex: 10
+              },
+              cell: { userEnteredFormat: { backgroundColor: { red: 0.8, green: 0.9, blue: 1 } } },
+              fields: 'userEnteredFormat.backgroundColor'
+            }
+          }
+        ]
+      })
+    });
+
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${insertRow}:J${insertRow}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          values: [[name, start, end, '', '', '', '', '', '', summary.replace(/\n/g, ' ')]]
+        })
+      }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // --- Servir le build React ---
