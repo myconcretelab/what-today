@@ -24,7 +24,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import useAvailability from '../hooks/useAvailability';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import { SAVE_RESERVATION } from '../services/api.js';
+import { SAVE_RESERVATION, fetchSchoolHolidays } from '../services/api.js';
 
 // Activer le plugin
 dayjs.extend(isSameOrAfter);
@@ -49,6 +49,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [draps, setDraps] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const availability = useAvailability(bookings, arrival, departure, range);
+  const [holidayDates, setHolidayDates] = useState(new Set());
 
   useEffect(() => {
     const parts = [];
@@ -57,6 +58,22 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
     parts.push(`Draps: ${draps ? 'oui' : 'non'}`);
     setInfo(parts.join('\n'));
   }, [name, phone, draps]);
+
+  useEffect(() => {
+    fetchSchoolHolidays()
+      .then(data => {
+        const dates = new Set();
+        data.forEach(h => {
+          let d = dayjs(h.start);
+          const end = dayjs(h.end);
+          for (; !d.isAfter(end, 'day'); d = d.add(1, 'day')) {
+            dates.add(d.format('YYYY-MM-DD'));
+          }
+        });
+        setHolidayDates(dates);
+      })
+      .catch(() => {});
+  }, []);
 
   const handlePhoneChange = e => {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -98,6 +115,26 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+  };
+
+  const renderDayContent = date => {
+    const formatted = dayjs(date).format('YYYY-MM-DD');
+    const isHoliday = holidayDates.has(formatted);
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isHoliday ? '#fff9c4' : undefined,
+          borderRadius: '50%'
+        }}
+      >
+        {dayjs(date).date()}
+      </div>
+    );
   };
 
   const reservationText = selectedGite
@@ -150,6 +187,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                       { startDate: arrival.toDate(), endDate: departure.toDate(), key: 'selection' }
                     ]}
                     onChange={item => handleRangeChange(item.selection)}
+                    dayContentRenderer={renderDayContent}
                   />
                 </Popover>
                 <TextField

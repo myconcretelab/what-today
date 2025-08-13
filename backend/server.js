@@ -95,6 +95,48 @@ function writeStatuses(data) {
   fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
 }
 
+// --- School holidays cache ---
+const holidaysCache = {};
+
+async function fetchHolidaysForYear(year) {
+  const academicYear = `${year}-${year + 1}`;
+  const url =
+    'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records' +
+    `?limit=100&where=annee%3D%22${academicYear}%22`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const records = json.records || [];
+    const holidays = [];
+    records.forEach(r => {
+      const zones = (r.zones || '')
+        .split(',')
+        .map(z => z.trim().replace('Zone ', ''));
+      zones.forEach(z => {
+        holidays.push({
+          zone: z,
+          start: r.start_date,
+          end: r.end_date,
+          description: r.description
+        });
+      });
+    });
+    holidaysCache[year] = holidays;
+  } catch (err) {
+    console.error('Failed to fetch holidays for', year, err.message);
+    holidaysCache[year] = [];
+  }
+}
+
+async function initHolidays() {
+  const currentYear = dayjs().year();
+  const years = [currentYear, currentYear + 1];
+  await Promise.all(years.map(fetchHolidaysForYear));
+}
+
+initHolidays();
+
 // --- Définition des gîtes et de leurs sources ical ---
 // Chaque gîte possède plusieurs URLs ical, correspondant à
 // différentes plateformes de réservation.
@@ -265,6 +307,14 @@ app.post('/api/reload-icals', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+app.get('/api/school-holidays', (req, res) => {
+  const year = parseInt(req.query.year, 10) || dayjs().year();
+  const zone = req.query.zone ? req.query.zone.toUpperCase() : null;
+  const data = holidaysCache[year] || [];
+  const filtered = zone ? data.filter(h => h.zone === zone) : data;
+  res.json(filtered);
 });
 
 // Récupération des statuts
