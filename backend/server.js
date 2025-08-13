@@ -143,15 +143,12 @@ async function chargerCalendriers() {
     }
   }
 
-  // Filtrage des événements qui chevauchent la période
-  // allant de J-5 au 31 décembre de l'année courante.
+  // Filtrage des événements à partir de J-5
   const today = dayjs().startOf('day');
   const startWindow = today.subtract(5, 'day');
-  const endWindow = today.endOf('year');
   reservations = reservations.filter(ev => {
-    const debut = dayjs(ev.debut);
     const fin = dayjs(ev.fin);
-    return debut.isBefore(endWindow.add(1, 'day')) && fin.isAfter(startWindow);
+    return fin.isAfter(startWindow);
   });
 }
 
@@ -181,7 +178,10 @@ await chargerCalendriers();
 app.get('/api/arrivals', (req, res) => {
   const today = dayjs().startOf('day');
   const startWindow = today.subtract(5, 'day');
-  const endWindow = today.endOf('year');
+  const endWindow = reservations.reduce((max, ev) => {
+    const fin = dayjs(ev.fin);
+    return fin.isAfter(max) ? fin : max;
+  }, startWindow);
   const dates = [];
   for (let d = startWindow; !d.isAfter(endWindow); d = d.add(1, 'day')) {
     dates.push(d.format('YYYY-MM-DD'));
