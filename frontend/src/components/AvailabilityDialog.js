@@ -12,6 +12,7 @@ import {
   MenuItem,
   Button
 } from '@mui/material';
+import DateRangePicker from 'mui-daterange-picker';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import dayjs from 'dayjs';
@@ -37,23 +38,17 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [showReservation, setShowReservation] = useState(false);
   const [selectedGite, setSelectedGite] = useState(null);
   const [note, setNote] = useState('');
+  const [openPicker, setOpenPicker] = useState(false);
   const availability = useAvailability(bookings, arrival, departure, range);
 
-  const handleArrival = date => {
-    if (!date) return;
-    setArrival(date);
-    if (!date.add(1, 'day').isBefore(departure)) {
-      setDeparture(date.add(1, 'day'));
-    }
+  const togglePicker = () => {
+    setOpenPicker(!openPicker);
   };
 
-  const handleDeparture = date => {
-    if (!date) return;
-    if (date.isBefore(arrival.add(1, 'day'))) {
-      setDeparture(arrival.add(1, 'day'));
-    } else {
-      setDeparture(date);
-    }
+  const handleRangeChange = newRange => {
+    if (!newRange.startDate || !newRange.endDate) return;
+    setArrival(dayjs(newRange.startDate));
+    setDeparture(dayjs(newRange.endDate));
   };
 
   const handleReserve = g => {
@@ -95,19 +90,15 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
             <DialogContent>
               <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <TextField
-                  label="Arrivée"
-                  type="date"
-                  value={arrival.format('YYYY-MM-DD')}
-                  onChange={e => handleArrival(dayjs(e.target.value))}
-                  InputLabelProps={{ shrink: true }}
+                  label="Période"
+                  value={`${arrival.format('YYYY-MM-DD')} - ${departure.format('YYYY-MM-DD')}`}
+                  onClick={togglePicker}
+                  InputProps={{ readOnly: true }}
                 />
-                <TextField
-                  label="Départ"
-                  type="date"
-                  value={departure.format('YYYY-MM-DD')}
-                  onChange={e => handleDeparture(dayjs(e.target.value))}
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{ min: arrival.add(1, 'day').format('YYYY-MM-DD') }}
+                <DateRangePicker
+                  open={openPicker}
+                  toggle={togglePicker}
+                  onChange={handleRangeChange}
                 />
                 <TextField
                   select
