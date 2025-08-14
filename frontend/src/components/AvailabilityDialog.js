@@ -123,11 +123,24 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
     setShowReservation(true);
   };
 
-  const handleSave = async () => {
-    if (!selectedGite) return;
-    setSaving(true);
-    setSaveError(false);
-    await navigator.clipboard.writeText(info);
+const handleSave = () => {
+  if (!selectedGite) return;
+  setSaving(true);
+  setSaveError(false);
+
+  const link = GITE_LINKS[selectedGite.id];
+
+  // 1) Ouvrir immédiatement (synchrone) pour ne pas être bloqué
+  let w = null;
+  if (link) {
+    w = window.open('', '_blank', 'noopener'); // iOS-friendly
+  }
+
+  // 2) Ne *pas* await le clipboard (garde le geste utilisateur)
+  navigator.clipboard?.writeText(info).catch(() => {});
+
+  // 3) Faire l'async ensuite et pousser l'URL dans la fenêtre déjà ouverte
+  (async () => {
     const payload = {
       giteId: selectedGite.id,
       name,
@@ -135,33 +148,38 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
       end: departure.format('DD/MM/YYYY'),
       summary: info.replace(/\n/g, ' ')
     };
+
     try {
       const res = await fetch(SAVE_RESERVATION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error();
-      setSaving(false);
-      const link = GITE_LINKS[selectedGite.id];
-      if (link) {
-        const start = arrival.format('YYYY-MM-DD');
-        const end = departure.format('YYYY-MM-DD');
-        const url = `${link}/edit-selected-dates/${start}/${end}`;
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      if (!res.ok) throw new Error('save failed');
+
+      const start = arrival.format('YYYY-MM-DD');
+      const end = departure.format('YYYY-MM-DD');
+      const url = link ? `${link}/edit-selected-dates/${start}/${end}` : null;
+
+      if (url) {
+        if (w) {
+          w.location.href = url;        // met à jour l’onglet pré-ouvert
+        } else {
+          // fallback (ex: PWA iOS renvoie null) : navigue dans l’onglet courant
+          window.location.href = url;
+        }
+      } else if (w) {
+        w.close();
       }
     } catch (e) {
-      setSaving(false);
       setSaveError(true);
+      if (w) w.close(); // referme si échec
+    } finally {
+      setSaving(false);
     }
-  };
+  })();
+};
+
 
   const renderDayContent = date => {
     const formatted = dayjs(date).format('YYYY-MM-DD');
