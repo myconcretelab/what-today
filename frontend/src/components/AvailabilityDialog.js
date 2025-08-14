@@ -147,7 +147,15 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
       if (link) {
         const start = arrival.format('YYYY-MM-DD');
         const end = departure.format('YYYY-MM-DD');
-        window.open(`${link}/edit-selected-dates/${start}/${end}`, '_blank');
+        const url = `${link}/edit-selected-dates/${start}/${end}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       }
     } catch (e) {
       setSaving(false);
