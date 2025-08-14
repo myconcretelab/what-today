@@ -385,13 +385,6 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                 <Button
                   variant="contained"
                   size="small"
-                  onClick={() => navigator.clipboard.writeText(info)}
-                >
-                  Copier
-                </Button>
-                <Button
-                  variant="contained"
-                  size="small"
                   color={saveError ? 'error' : saving ? 'warning' : 'primary'}
                   onClick={handleSave}
                 >
