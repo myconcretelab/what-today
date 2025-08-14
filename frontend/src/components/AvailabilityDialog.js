@@ -204,7 +204,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth>
-      <Box sx={{ overflow: 'hidden' }}>
+      <Box sx={{ overflowX: 'hidden' }}>
         <Box
           sx={{
             display: 'flex',
@@ -336,21 +336,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
               </IconButton>
               Réservation
             </DialogTitle>
-            <DialogContent>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                SMS
-              </Typography>
-              <Box sx={{ border: '1px solid', borderColor: 'grey.400', borderRadius: 1, p: 2, mb: 1 }}>
-                <Typography sx={{ whiteSpace: 'pre-line' }}>{reservationText}</Typography>
-              </Box>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => navigator.clipboard.writeText(reservationText)}
-                sx={{ mb: 2 }}
-              >
-                Copier
-              </Button>
+            <DialogContent sx={{ overflowY: 'auto' }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
                 Infos Résa
               </Typography>
@@ -381,7 +367,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                 InputProps={{ readOnly: true }}
                 sx={{ mb: 1 }}
               />
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                 <Button
                   variant="contained"
                   size="small"
@@ -394,6 +380,20 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                   {saveError ? 'Erreur !' : 'Sauvegarder'}
                 </Button>
               </Box>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                SMS
+              </Typography>
+              <Box sx={{ border: '1px solid', borderColor: 'grey.400', borderRadius: 1, p: 2, mb: 1 }}>
+                <Typography sx={{ whiteSpace: 'pre-line' }}>{reservationText}</Typography>
+              </Box>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => navigator.clipboard.writeText(reservationText)}
+                sx={{ mb: 2 }}
+              >
+                Copier
+              </Button>
             </DialogContent>
           </Box>
         </Box>
