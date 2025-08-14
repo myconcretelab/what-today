@@ -13,7 +13,8 @@ import {
   Button,
   Popover,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  CircularProgress
 } from '@mui/material';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
@@ -41,6 +42,13 @@ const GITE_LABELS = {
   liberte: 'du Liberté à Mauron'
 };
 
+const GITE_LINKS = {
+  liberte: 'https://www.airbnb.fr/multicalendar/48504640',
+  gree: 'https://www.airbnb.fr/multicalendar/16674752',
+  phonsine: 'https://www.airbnb.fr/multicalendar/6668903',
+  edmond: 'https://www.airbnb.fr/multicalendar/43504621'
+};
+
 export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [arrival, setArrival] = useState(dayjs());
   const [departure, setDeparture] = useState(dayjs().add(1, 'day'));
@@ -55,6 +63,8 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const availability = useAvailability(bookings, arrival, departure, range);
   const [holidayDates, setHolidayDates] = useState(new Set());
   const [publicHolidayDates, setPublicHolidayDates] = useState(new Set());
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
     const parts = [];
@@ -115,7 +125,9 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
 
   const handleSave = async () => {
     if (!selectedGite) return;
-    console.log(SAVE_RESERVATION);
+    setSaving(true);
+    setSaveError(false);
+    await navigator.clipboard.writeText(info);
     const payload = {
       giteId: selectedGite.id,
       name,
@@ -123,11 +135,20 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
       end: departure.format('DD/MM/YYYY'),
       summary: info.replace(/\n/g, ' ')
     };
-    await fetch(SAVE_RESERVATION, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const res = await fetch(SAVE_RESERVATION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error();
+      setSaving(false);
+      const link = GITE_LINKS[selectedGite.id];
+      if (link) window.open(link, '_blank');
+    } catch (e) {
+      setSaving(false);
+      setSaveError(true);
+    }
   };
 
   const renderDayContent = date => {
@@ -367,10 +388,13 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
                 <Button
                   variant="contained"
                   size="small"
-                  color="success"
+                  color={saveError ? 'error' : saving ? 'warning' : 'primary'}
                   onClick={handleSave}
                 >
-                  Sauvegarder
+                  {saving && (
+                    <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+                  )}
+                  {saveError ? 'Erreur !' : 'Sauvegarder'}
                 </Button>
               </Box>
             </DialogContent>
