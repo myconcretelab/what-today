@@ -144,7 +144,11 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
       if (!res.ok) throw new Error();
       setSaving(false);
       const link = GITE_LINKS[selectedGite.id];
-      if (link) window.open(link, '_blank');
+      if (link) {
+        const start = arrival.format('YYYY-MM-DD');
+        const end = departure.format('YYYY-MM-DD');
+        window.open(`${link}/edit-selected-dates/${start}/${end}`, '_blank');
+      }
     } catch (e) {
       setSaving(false);
       setSaveError(true);
