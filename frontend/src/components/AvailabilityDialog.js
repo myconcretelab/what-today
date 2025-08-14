@@ -65,6 +65,7 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
   const [publicHolidayDates, setPublicHolidayDates] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [airbnbUrl, setAirbnbUrl] = useState(null);
 
   useEffect(() => {
     const parts = [];
@@ -127,19 +128,11 @@ const handleSave = () => {
   if (!selectedGite) return;
   setSaving(true);
   setSaveError(false);
+  setAirbnbUrl(null);
 
-  const link = GITE_LINKS[selectedGite.id];
-
-  // 1) Ouvrir immédiatement (synchrone) pour ne pas être bloqué
-  let w = null;
-  if (link) {
-    w = window.open('', '_blank', 'noopener'); // iOS-friendly
-  }
-
-  // 2) Ne *pas* await le clipboard (garde le geste utilisateur)
+  // Ne pas await le clipboard pour conserver le geste utilisateur
   navigator.clipboard?.writeText(info).catch(() => {});
 
-  // 3) Faire l'async ensuite et pousser l'URL dans la fenêtre déjà ouverte
   (async () => {
     const payload = {
       giteId: selectedGite.id,
@@ -159,21 +152,11 @@ const handleSave = () => {
 
       const start = arrival.format('YYYY-MM-DD');
       const end = departure.format('YYYY-MM-DD');
+      const link = GITE_LINKS[selectedGite.id];
       const url = link ? `${link}/edit-selected-dates/${start}/${end}` : null;
-
-      if (url) {
-        if (w) {
-          w.location.href = url;        // met à jour l’onglet pré-ouvert
-        } else {
-          // fallback (ex: PWA iOS renvoie null) : navigue dans l’onglet courant
-          window.location.href = url;
-        }
-      } else if (w) {
-        w.close();
-      }
+      setAirbnbUrl(url);
     } catch (e) {
       setSaveError(true);
-      if (w) w.close(); // referme si échec
     } finally {
       setSaving(false);
     }
@@ -394,17 +377,30 @@ const handleSave = () => {
                 sx={{ mb: 1 }}
               />
               <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <Button
-                  variant="contained"
-                  size="small"
-                  color={saveError ? 'error' : saving ? 'warning' : 'primary'}
-                  onClick={handleSave}
-                >
-                  {saving && (
-                    <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
-                  )}
-                  {saveError ? 'Erreur !' : 'Sauvegarder'}
-                </Button>
+                {airbnbUrl ? (
+                  <Button
+                    component="a"
+                    href={airbnbUrl}
+                    target="_blank"
+                    rel="noopener"
+                    variant="contained"
+                    size="small"
+                  >
+                    Calendrier Airbnb
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    color={saveError ? 'error' : saving ? 'warning' : 'primary'}
+                    onClick={handleSave}
+                  >
+                    {saving && (
+                      <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+                    )}
+                    {saveError ? 'Erreur !' : 'Sauvegarder'}
+                  </Button>
+                )}
               </Box>
               <Typography variant="h6" sx={{ mb: 1 }}>
                 SMS
