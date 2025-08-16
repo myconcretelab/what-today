@@ -151,7 +151,7 @@ const handleSave = () => {
       if (!res.ok) throw new Error('save failed');
 
       const start = arrival.format('YYYY-MM-DD');
-      const end = departure.format('YYYY-MM-DD');
+      const end = departure.subtract(1,"day").format('YYYY-MM-DD');
       const link = GITE_LINKS[selectedGite.id];
       const url = link ? `${link}/edit-selected-dates/${start}/${end}` : null;
       setAirbnbUrl(url);
