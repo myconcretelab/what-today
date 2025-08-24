@@ -245,7 +245,7 @@ export function AvailabilityProvider({ bookings, children }) {
         .locale('fr')
         .format('D MMMM YYYY')} à partir de 17h au ${departure
         .locale('fr')
-        .format('D MMMM YYYY')} midi (${nightCount} nuit${nightCount > 1 ? 's' : ''}).${priceLine}\n${GITE_ADDRESSES[selectedGite.id]}\nMerci Beaucoup,\nSoazig Molinier`
+        .format('D MMMM YYYY')} midi (${nightCount} nuit${nightCount > 1 ? 's' : ''}).${priceLine}\n Adresse du gîte: ${GITE_ADDRESSES[selectedGite.id]}\nMerci Beaucoup,\nSoazig Molinier`
     : '';
   const extras = selectedTexts
     .map(i => {
