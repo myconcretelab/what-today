@@ -5,7 +5,6 @@ import {
   Chip,
   Typography,
   TextField,
-  MenuItem,
   Button,
   Popover,
   Checkbox,
@@ -48,14 +47,13 @@ const AvailabilityContext = createContext(null);
 export function AvailabilityProvider({ bookings, children }) {
   const [arrival, setArrival] = useState(dayjs());
   const [departure, setDeparture] = useState(dayjs().add(1, 'day'));
-  const [range, setRange] = useState(1);
   const [selectedGite, setSelectedGite] = useState(null);
   const [info, setInfo] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [draps, setDraps] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const availability = useAvailability(bookings, arrival, departure, range);
+  const availability = useAvailability(bookings, arrival, departure, 1);
   const [holidayDates, setHolidayDates] = useState(new Set());
   const [publicHolidayDates, setPublicHolidayDates] = useState(new Set());
   const [saving, setSaving] = useState(false);
@@ -112,6 +110,9 @@ export function AvailabilityProvider({ bookings, children }) {
     if (!newRange.startDate || !newRange.endDate) return;
     setArrival(dayjs(newRange.startDate));
     setDeparture(dayjs(newRange.endDate));
+    setAirbnbUrl(null);
+    setSaveError(false);
+    setSaving(false);
   };
 
   const handleReserve = (g, onGoto) => {
@@ -204,8 +205,6 @@ export function AvailabilityProvider({ bookings, children }) {
       value={{
         arrival,
         departure,
-        range,
-        setRange,
         handleOpenPicker,
         anchorEl,
         handleClosePicker,
@@ -238,8 +237,6 @@ export function AvailabilityPeriodPanel({ onReserve }) {
   const {
     arrival,
     departure,
-    range,
-    setRange,
     handleOpenPicker,
     anchorEl,
     handleClosePicker,
@@ -249,12 +246,14 @@ export function AvailabilityPeriodPanel({ onReserve }) {
     renderDayContent
   } = useContext(AvailabilityContext);
 
+  const nightCount = departure.diff(arrival, 'day');
+
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Choisir des dates
       </Typography>
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
         <TextField
           label="Période"
           value={`${arrival.format('YYYY-MM-DD')} - ${departure.format('YYYY-MM-DD')}`}
@@ -275,17 +274,7 @@ export function AvailabilityPeriodPanel({ onReserve }) {
             dayContentRenderer={renderDayContent}
           />
         </Popover>
-        <TextField
-          select
-          label="Plage"
-          value={range}
-          onChange={e => setRange(Number(e.target.value))}
-        >
-          <MenuItem value={1}>1 jour</MenuItem>
-          <MenuItem value={2}>2 jours</MenuItem>
-          <MenuItem value={3}>3 jours</MenuItem>
-          <MenuItem value={4}>4 jours</MenuItem>
-        </TextField>
+        <Chip label={`${nightCount} nuits`} size="small" sx={{ bgcolor: '#f48fb1', color: '#fff' }} />
       </Box>
       {availability.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -384,7 +373,7 @@ export function AvailabilityReservationPanel() {
     reservationText
   } = useContext(AvailabilityContext);
 
-  const nights = departure.diff(arrival, 'day');
+  const nightCount = departure.diff(arrival, 'day');
 
   return (
     <Box sx={{ p: 2 }}>
@@ -397,7 +386,7 @@ export function AvailabilityReservationPanel() {
           sx={{ color: 'grey.600', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
         >
           {selectedGite.name} — {arrival.format('DD/MM/YYYY')} au {departure.format('DD/MM/YYYY')}
-          <Chip label={`${nights} nuits`} size="small" sx={{ bgcolor: '#f48fb1', color: '#fff' }} />
+          <Chip label={`${nightCount} nuits`} size="small" sx={{ bgcolor: '#f48fb1', color: '#fff' }} />
         </Typography>
       )}
       <Typography variant="h6" sx={{ mb: 1 }}>
