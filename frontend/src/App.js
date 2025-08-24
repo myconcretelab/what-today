@@ -9,9 +9,18 @@ import {
   updateStatus,
   refreshCalendars
 } from './services/api';
-import { Box } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import Legend from './components/Legend';
-import AvailabilityDialog from './components/AvailabilityDialog';
+import {
+  AvailabilityProvider,
+  AvailabilityPeriodPanel,
+  AvailabilityReservationPanel
+} from './components/AvailabilityPanels';
+import SettingsPanel from './components/SettingsPanel';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EditIcon from '@mui/icons-material/Edit';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
@@ -26,7 +35,7 @@ function App() {
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
   const [refreshing, setRefreshing] = useState(false);
-  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [panel, setPanel] = useState(0);
 
   // Chargement des données après authentification
   useEffect(() => {
@@ -68,31 +77,72 @@ function App() {
   if (loading) return <Loader />;
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%' }}>
-      <CalendarBar bookings={data.reservations} errors={data.erreurs} />
-      <Legend
-        bookings={data.reservations}
-        selectedUser={selectedUser}
-        onUserChange={user => {
-          setSelectedUser(user);
-          localStorage.setItem(USER_KEY, user);
-        }}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        onOpenAvailability={() => setAvailabilityOpen(true)}
-      />
-      <ArrivalsList
-        bookings={data.reservations}
-        errors={data.erreurs}
-        statuses={statuses}
-        onStatusChange={handleStatusChange}
-      />
-      <AvailabilityDialog
-        open={availabilityOpen}
-        onClose={() => setAvailabilityOpen(false)}
-        bookings={data.reservations}
-      />
-    </Box>
+    <AvailabilityProvider bookings={data.reservations}>
+      <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%', overflow: 'hidden', height: '100vh', pb: 7 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            width: '400%',
+            transform: `translateX(-${panel * 25}%)`,
+            transition: 'transform 0.3s'
+          }}
+        >
+          <Box sx={{ width: '100%', p: 2 }}>
+            <CalendarBar bookings={data.reservations} errors={data.erreurs} />
+            <Legend
+              bookings={data.reservations}
+              selectedUser={selectedUser}
+              onUserChange={user => {
+                setSelectedUser(user);
+                localStorage.setItem(USER_KEY, user);
+              }}
+              onRefresh={handleRefresh}
+              refreshing={refreshing}
+            />
+            <ArrivalsList
+              bookings={data.reservations}
+              errors={data.erreurs}
+              statuses={statuses}
+              onStatusChange={handleStatusChange}
+            />
+          </Box>
+          <Box sx={{ width: '100%' }}>
+            <AvailabilityPeriodPanel onReserve={() => setPanel(2)} />
+          </Box>
+          <Box sx={{ width: '100%' }}>
+            <AvailabilityReservationPanel />
+          </Box>
+          <Box sx={{ width: '100%' }}>
+            <SettingsPanel />
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            width: '100%',
+            bgcolor: '#f48fb1',
+            display: 'flex',
+            justifyContent: 'space-around',
+            py: 1
+          }}
+        >
+          <IconButton onClick={() => setPanel(0)} sx={{ color: '#fff' }}>
+            <AccessTimeIcon />
+          </IconButton>
+          <IconButton onClick={() => setPanel(1)} sx={{ color: '#fff' }}>
+            <CalendarMonthIcon />
+          </IconButton>
+          <IconButton onClick={() => setPanel(2)} sx={{ color: '#fff' }}>
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={() => setPanel(3)} sx={{ color: '#fff' }}>
+            <SettingsIcon />
+          </IconButton>
+        </Box>
+      </Box>
+    </AvailabilityProvider>
   );
 }
 
