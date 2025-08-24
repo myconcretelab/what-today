@@ -443,7 +443,7 @@ export function AvailabilityReservationPanel() {
         label="Prix/nuit"
         value={selectedPrice}
         onChange={e => setSelectedPrice(e.target.value)}
-        sx={{ mb: 1 }}
+        sx={{ mb: 1, minWidth: 120 }}
       >
         {selectedGite &&
           prices
