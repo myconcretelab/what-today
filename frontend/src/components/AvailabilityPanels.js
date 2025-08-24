@@ -41,6 +41,13 @@ const GITE_LABELS = {
   liberte: 'du Liberté à Mauron'
 };
 
+const GITE_ADDRESSES = {
+  liberte: '1 place de la Liberté, 56430 Mauron.',
+  phonsine: '5 Tlohan, 56430 Néant sur Yvel.',
+  edmond: '9 Tlohan, 56430 Néant sur Yvel.',
+  gree: '2 rue de la Grée des Horets'
+};
+
 const GITE_LINKS = {
   liberte: 'https://www.airbnb.fr/multicalendar/48504640',
   gree: 'https://www.airbnb.fr/multicalendar/16674752',
@@ -238,7 +245,7 @@ export function AvailabilityProvider({ bookings, children }) {
         .locale('fr')
         .format('D MMMM YYYY')} à partir de 17h au ${departure
         .locale('fr')
-        .format('D MMMM YYYY')} midi.${priceLine}\nMerci Beaucoup,\nSoazig Molinier`
+        .format('D MMMM YYYY')} midi (${nightCount} nuit${nightCount > 1 ? 's' : ''}).${priceLine}\n${GITE_ADDRESSES[selectedGite.id]}\nMerci Beaucoup,\nSoazig Molinier`
     : '';
   const extras = selectedTexts
     .map(i => {
