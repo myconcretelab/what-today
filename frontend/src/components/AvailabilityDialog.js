@@ -69,8 +69,8 @@ export default function AvailabilityDialog({ open, onClose, bookings }) {
 
   useEffect(() => {
     const parts = [];
-    if (name) parts.push(`Nom/prénom: ${name}`);
-    if (phone) parts.push(`Téléphone: ${phone}`);
+    if (name) parts.push(`N: ${name}`);
+    if (phone) parts.push(`T: ${phone}`);
     parts.push(`Draps: ${draps ? 'oui' : 'non'}`);
     setInfo(parts.join('\n'));
   }, [name, phone, draps]);
@@ -201,9 +201,9 @@ const handleSave = () => {
   const reservationText = selectedGite
     ? `Bonjour,\nJe vous confirme votre réservation pour le gîte ${GITE_LABELS[selectedGite.id]} du ${arrival
         .locale('fr')
-        .format('D MMMM YYYY')} au ${departure
+        .format('D MMMM YYYY')} à partir de 17h au ${departure
         .locale('fr')
-        .format('D MMMM YYYY')}.\nMerci Beaucoup,\nSoazig Molinier`
+        .format('D MMMM YYYY')} midi.\nMerci Beaucoup,\nSoazig Molinier`
     : '';
 
   const handleClose = () => {
