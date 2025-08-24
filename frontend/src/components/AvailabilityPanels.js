@@ -245,8 +245,9 @@ export function AvailabilityProvider({ bookings, children }) {
         .locale('fr')
         .format('D MMMM YYYY')} à partir de 17h au ${departure
         .locale('fr')
-        .format('D MMMM YYYY')} midi (${nightCount} nuit${nightCount > 1 ? 's' : ''}).${priceLine}\n L'adresse est ${GITE_ADDRESSES[selectedGite.id]}\nMerci Beaucoup,\nSoazig Molinier`
+        .format('D MMMM YYYY')} midi (${nightCount} nuit${nightCount > 1 ? 's' : ''}).${priceLine}\n L'adresse est ${GITE_ADDRESSES[selectedGite.id]}`
     : '';
+  const signature = '\nMerci Beaucoup,\nSoazig Molinier';
   const extras = selectedTexts
     .map(i => {
       const t = texts[i];
@@ -258,7 +259,7 @@ export function AvailabilityProvider({ bookings, children }) {
         .replace('{nbNuits}', String(nightCount));
     })
     .join('');
-  const reservationText = baseText + extras;
+  const reservationText = baseText + extras + signature;
 
   return (
     <AvailabilityContext.Provider
