@@ -7,6 +7,7 @@ const REFRESH_URL = `${API_BASE}/api/reload-icals`;
 export const SAVE_RESERVATION = `${API_BASE}/api/save-reservation`;
 const PRICES_URL = `${API_BASE}/api/prices`;
 const TEXTS_URL = `${API_BASE}/api/texts`;
+const DATA_URL = `${API_BASE}/api/data`;
 const HOLIDAYS_URL = `${API_BASE}/api/school-holidays`;
 const PUBLIC_HOLIDAYS_URL = 'https://calendrier.api.gouv.fr/jours-feries/metropole.json';
 
@@ -76,6 +77,22 @@ export async function fetchTexts() {
 
 export async function saveTexts(data) {
   const res = await fetch(TEXTS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function fetchData() {
+  const res = await fetch(DATA_URL);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function saveData(data) {
+  const res = await fetch(DATA_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)

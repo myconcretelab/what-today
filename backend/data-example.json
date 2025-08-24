@@ -1,0 +1,9 @@
+{
+  "prices": [
+    { "amount": 100, "gites": ["phonsine", "gree"] },
+    { "amount": 120, "gites": ["edmond", "liberte"] }
+  ],
+  "texts": [
+    { "title": "Réservation", "text": "Pensez à réserver" }
+  ]
+}
