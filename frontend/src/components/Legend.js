@@ -9,10 +9,9 @@ import {
   CircularProgress
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { sourceColor, giteInitial } from '../utils';
 
-function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing, onOpenAvailability }) {
+function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing }) {
   const gites = Array.from(
     new Map(bookings.map(b => [b.giteId, b.giteNom])).entries()
   );
@@ -37,9 +36,6 @@ function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing, o
           <MenuItem value="Seb">Seb</MenuItem>
         </Select>
         <Box>
-          <IconButton onClick={onOpenAvailability} sx={{ mr: 1 }}>
-            <CalendarMonthIcon />
-          </IconButton>
           <IconButton onClick={onRefresh} disabled={refreshing}>
             {refreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
           </IconButton>

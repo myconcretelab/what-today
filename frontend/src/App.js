@@ -9,9 +9,19 @@ import {
   updateStatus,
   refreshCalendars
 } from './services/api';
-import { Box } from '@mui/material';
+import {
+  Box,
+  BottomNavigation,
+  BottomNavigationAction
+} from '@mui/material';
 import Legend from './components/Legend';
-import AvailabilityDialog from './components/AvailabilityDialog';
+import AvailabilityPanel from './components/AvailabilityPanel';
+import ReservationPanel from './components/ReservationPanel';
+import SettingsPanel from './components/SettingsPanel';
+import TimerIcon from '@mui/icons-material/Timer';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EditIcon from '@mui/icons-material/Edit';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
@@ -26,7 +36,7 @@ function App() {
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
   const [refreshing, setRefreshing] = useState(false);
-  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [panel, setPanel] = useState(0);
 
   // Chargement des données après authentification
   useEffect(() => {
@@ -68,30 +78,62 @@ function App() {
   if (loading) return <Loader />;
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%' }}>
-      <CalendarBar bookings={data.reservations} errors={data.erreurs} />
-      <Legend
-        bookings={data.reservations}
-        selectedUser={selectedUser}
-        onUserChange={user => {
-          setSelectedUser(user);
-          localStorage.setItem(USER_KEY, user);
+    <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%', overflow: 'hidden', pb: 7 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          width: '400%',
+          transform: `translateX(-${panel * 100}%)`,
+          transition: 'transform 0.3s'
         }}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        onOpenAvailability={() => setAvailabilityOpen(true)}
-      />
-      <ArrivalsList
-        bookings={data.reservations}
-        errors={data.erreurs}
-        statuses={statuses}
-        onStatusChange={handleStatusChange}
-      />
-      <AvailabilityDialog
-        open={availabilityOpen}
-        onClose={() => setAvailabilityOpen(false)}
-        bookings={data.reservations}
-      />
+      >
+        <Box sx={{ width: '100%', flexShrink: 0 }}>
+          <CalendarBar bookings={data.reservations} errors={data.erreurs} />
+          <Legend
+            bookings={data.reservations}
+            selectedUser={selectedUser}
+            onUserChange={user => {
+              setSelectedUser(user);
+              localStorage.setItem(USER_KEY, user);
+            }}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+          />
+          <ArrivalsList
+            bookings={data.reservations}
+            errors={data.erreurs}
+            statuses={statuses}
+            onStatusChange={handleStatusChange}
+          />
+        </Box>
+        <Box sx={{ width: '100%', flexShrink: 0 }}>
+          <AvailabilityPanel bookings={data.reservations} />
+        </Box>
+        <Box sx={{ width: '100%', flexShrink: 0 }}>
+          <ReservationPanel />
+        </Box>
+        <Box sx={{ width: '100%', flexShrink: 0 }}>
+          <SettingsPanel />
+        </Box>
+      </Box>
+      <BottomNavigation
+        value={panel}
+        onChange={(e, v) => setPanel(v)}
+        showLabels
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          bgcolor: '#f48fb1',
+          '& .MuiSvgIcon-root': { color: '#fff' }
+        }}
+      >
+        <BottomNavigationAction icon={<TimerIcon />} />
+        <BottomNavigationAction icon={<CalendarMonthIcon />} />
+        <BottomNavigationAction icon={<EditIcon />} />
+        <BottomNavigationAction icon={<SettingsIcon />} />
+      </BottomNavigation>
     </Box>
   );
 }
