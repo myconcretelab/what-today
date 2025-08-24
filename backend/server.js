@@ -89,6 +89,9 @@ const STATUS_FILE = path.join(__dirname, 'statuses.json');
 // Fichier de stockage des tarifs
 const PRICES_FILE = path.join(__dirname, 'prices.json');
 
+// Fichier de stockage des textes SMS
+const TEXTS_FILE = path.join(__dirname, 'texts.json');
+
 function readStatuses() {
   if (!fs.existsSync(STATUS_FILE)) return {};
   return JSON.parse(fs.readFileSync(STATUS_FILE, 'utf-8'));
@@ -105,6 +108,15 @@ function readPrices() {
 
 function writePrices(data) {
   fs.writeFileSync(PRICES_FILE, JSON.stringify(data, null, 2));
+}
+
+function readTexts() {
+  if (!fs.existsSync(TEXTS_FILE)) return [];
+  return JSON.parse(fs.readFileSync(TEXTS_FILE, 'utf-8'));
+}
+
+function writeTexts(data) {
+  fs.writeFileSync(TEXTS_FILE, JSON.stringify(data, null, 2));
 }
 
 // --- School holidays cache ---
@@ -400,6 +412,16 @@ app.get('/api/prices', (req, res) => {
 
 app.post('/api/prices', (req, res) => {
   writePrices(req.body || []);
+  res.json({ success: true });
+});
+
+// Gestion des textes SMS
+app.get('/api/texts', (req, res) => {
+  res.json(readTexts());
+});
+
+app.post('/api/texts', (req, res) => {
+  writeTexts(req.body || []);
   res.json({ success: true });
 });
 

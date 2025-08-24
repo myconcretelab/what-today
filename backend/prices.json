@@ -1,8 +1,0 @@
-[
-  { "amount": 50, "gites": ["edmond"] },
-  { "amount": 55, "gites": ["edmond"] },
-  { "amount": 70, "gites": ["phonsine", "gree"] },
-  { "amount": 75, "gites": ["phonsine", "gree"] },
-  { "amount": 300, "gites": ["liberte"] },
-  { "amount": 350, "gites": ["liberte"] }
-]

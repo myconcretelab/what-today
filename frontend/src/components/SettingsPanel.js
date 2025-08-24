@@ -14,16 +14,20 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { fetchPrices, savePrices } from '../services/api';
+import { fetchPrices, savePrices, fetchTexts, saveTexts } from '../services/api';
 
 const GITE_OPTIONS = ['phonsine', 'gree', 'edmond', 'liberte'];
 
 export default function SettingsPanel() {
   const [prices, setPrices] = useState([]);
+  const [texts, setTexts] = useState([]);
 
   useEffect(() => {
     fetchPrices()
       .then(data => setPrices(data))
+      .catch(() => {});
+    fetchTexts()
+      .then(data => setTexts(data))
       .catch(() => {});
   }, []);
 
@@ -49,6 +53,30 @@ export default function SettingsPanel() {
 
   const handleSave = () => {
     savePrices(prices).catch(() => {});
+  };
+
+  const handleTitleChange = (idx, value) => {
+    const next = [...texts];
+    next[idx].title = value;
+    setTexts(next);
+  };
+
+  const handleTextChange = (idx, value) => {
+    const next = [...texts];
+    next[idx].text = value;
+    setTexts(next);
+  };
+
+  const addText = () => {
+    setTexts([...texts, { title: '', text: '' }]);
+  };
+
+  const removeText = idx => {
+    setTexts(texts.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveTexts = () => {
+    saveTexts(texts).catch(() => {});
   };
 
   return (
@@ -98,6 +126,39 @@ export default function SettingsPanel() {
       <Button variant="contained" onClick={handleSave}>
         Sauvegarder
       </Button>
+      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
+        Textes SMS
+      </Typography>
+      {texts.map((t, idx) => (
+        <Box key={idx} sx={{ mb: 1 }}>
+          <TextField
+            label="Titre"
+            value={t.title}
+            onChange={e => handleTitleChange(idx, e.target.value)}
+            sx={{ mr: 1 }}
+          />
+          <IconButton onClick={() => removeText(idx)}>
+            <DeleteIcon />
+          </IconButton>
+          <TextField
+            multiline
+            rows={2}
+            fullWidth
+            value={t.text}
+            onChange={e => handleTextChange(idx, e.target.value)}
+            sx={{ mt: 1 }}
+          />
+        </Box>
+      ))}
+      <Button startIcon={<AddIcon />} onClick={addText} sx={{ mr: 1 }}>
+        Ajouter
+      </Button>
+      <Button variant="contained" onClick={handleSaveTexts} sx={{ mr: 1 }}>
+        Sauvegarder
+      </Button>
+      <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+        Variables: {'{dateDebut}'}, {'{dateFin}'}, {'{nom}'}, {'{nbNuits}'}
+      </Typography>
     </Box>
   );
 }
