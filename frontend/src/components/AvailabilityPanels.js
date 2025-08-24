@@ -10,7 +10,8 @@ import {
   Checkbox,
   FormControlLabel,
   CircularProgress,
-  MenuItem
+  MenuItem,
+  IconButton
 } from '@mui/material';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
@@ -19,6 +20,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import useAvailability from '../hooks/useAvailability';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   SAVE_RESERVATION,
   fetchSchoolHolidays,
@@ -136,6 +138,9 @@ export function AvailabilityProvider({ bookings, children }) {
 
   const handleReserve = (g, onGoto) => {
     setSelectedGite(g);
+    setAirbnbUrl(null);
+    setSaveError(false);
+    setSaving(false);
     if (onGoto) onGoto();
   };
 
@@ -382,7 +387,7 @@ export function AvailabilityPeriodPanel({ onReserve }) {
   );
 }
 
-export function AvailabilityReservationPanel() {
+export function AvailabilityReservationPanel({ onBack }) {
   const {
     arrival,
     departure,
@@ -409,9 +414,12 @@ export function AvailabilityReservationPanel() {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Réservation
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <IconButton onClick={onBack} size="large">
+          <ArrowBackIcon fontSize="large" />
+        </IconButton>
+        <Typography variant="h6">Réservation</Typography>
+      </Box>
       {selectedGite && (
         <Typography
           variant="subtitle2"
@@ -470,28 +478,27 @@ export function AvailabilityReservationPanel() {
         sx={{ mb: 1 }}
       />
       <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-        {airbnbUrl ? (
-          <Button
-            component="a"
-            href={airbnbUrl}
-            target="_blank"
-            rel="noopener"
-            variant="contained"
-            size="small"
-          >
-            Calendrier Airbnb
-          </Button>
-        ) : (
-          <Button
-            variant="contained"
-            size="small"
-            color={saveError ? 'error' : saving ? 'warning' : 'primary'}
-            onClick={handleSave}
-          >
-            {saving && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
-            {saveError ? 'Erreur !' : 'Sauvegarder'}
-          </Button>
-        )}
+        <Button
+          variant="contained"
+          size="small"
+          color={saveError ? 'error' : saving ? 'warning' : 'primary'}
+          onClick={handleSave}
+        >
+          {saving && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
+          {saveError ? 'Erreur !' : 'Sauvegarder'}
+        </Button>
+        <Button
+          variant="contained"
+          size="small"
+          component={airbnbUrl ? 'a' : 'button'}
+          href={airbnbUrl || undefined}
+          target={airbnbUrl ? '_blank' : undefined}
+          rel={airbnbUrl ? 'noopener' : undefined}
+          disabled={!airbnbUrl}
+          sx={{ bgcolor: '#000', color: '#fff', '&:hover': { bgcolor: '#333' } }}
+        >
+          Calendrier Airbnb
+        </Button>
       </Box>
       <Typography variant="h6" sx={{ mb: 1 }}>
         SMS
