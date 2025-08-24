@@ -11,7 +11,8 @@ import {
   FormControlLabel,
   CircularProgress,
   MenuItem,
-  IconButton
+  IconButton,
+  Switch
 } from '@mui/material';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
@@ -25,7 +26,8 @@ import {
   SAVE_RESERVATION,
   fetchSchoolHolidays,
   fetchPublicHolidays,
-  fetchPrices
+  fetchPrices,
+  fetchTexts
 } from '../services/api';
 
 // Enable plugin
@@ -65,6 +67,8 @@ export function AvailabilityProvider({ bookings, children }) {
   const [airbnbUrl, setAirbnbUrl] = useState(null);
   const [prices, setPrices] = useState([]);
   const [selectedPrice, setSelectedPrice] = useState('');
+  const [texts, setTexts] = useState([]);
+  const [selectedTexts, setSelectedTexts] = useState([]);
 
   useEffect(() => {
     const parts = [];
@@ -101,6 +105,12 @@ export function AvailabilityProvider({ bookings, children }) {
   useEffect(() => {
     fetchPrices()
       .then(data => setPrices(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchTexts()
+      .then(data => setTexts(data))
       .catch(() => {});
   }, []);
 
@@ -223,13 +233,25 @@ export function AvailabilityProvider({ bookings, children }) {
     priceNum != null
       ? `\nLe tarif est de ${priceNum}€/nuit, soit ${priceNum * nightCount}€.`
       : '';
-  const reservationText = selectedGite
+  const baseText = selectedGite
     ? `Bonjour,\nJe vous confirme votre réservation pour le gîte ${GITE_LABELS[selectedGite.id]} du ${arrival
         .locale('fr')
         .format('D MMMM YYYY')} à partir de 17h au ${departure
         .locale('fr')
         .format('D MMMM YYYY')} midi.${priceLine}\nMerci Beaucoup,\nSoazig Molinier`
     : '';
+  const extras = selectedTexts
+    .map(i => {
+      const t = texts[i];
+      if (!t) return '';
+      return `\n${t.text}`
+        .replace('{dateDebut}', arrival.locale('fr').format('D MMMM YYYY'))
+        .replace('{dateFin}', departure.locale('fr').format('D MMMM YYYY'))
+        .replace('{nom}', name)
+        .replace('{nbNuits}', String(nightCount));
+    })
+    .join('');
+  const reservationText = baseText + extras;
 
   return (
     <AvailabilityContext.Provider
@@ -259,7 +281,11 @@ export function AvailabilityProvider({ bookings, children }) {
         renderDayContent,
         selectedPrice,
         setSelectedPrice,
-        prices
+        prices,
+        texts,
+        selectedTexts,
+        setSelectedTexts,
+        nightCount
       }}
     >
       {children}
@@ -407,10 +433,12 @@ export function AvailabilityReservationPanel({ onBack }) {
     reservationText,
     selectedPrice,
     setSelectedPrice,
-    prices
+    prices,
+    texts,
+    selectedTexts,
+    setSelectedTexts,
+    nightCount
   } = useContext(AvailabilityContext);
-
-  const nightCount = departure.diff(arrival, 'day');
 
   return (
     <Box sx={{ p: 2 }}>
@@ -503,6 +531,26 @@ export function AvailabilityReservationPanel({ onBack }) {
       <Typography variant="h6" sx={{ mb: 1 }}>
         SMS
       </Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1 }}>
+        {texts.map((t, idx) => (
+          <FormControlLabel
+            key={idx}
+            control={
+              <Switch
+                checked={selectedTexts.includes(idx)}
+                onChange={e =>
+                  setSelectedTexts(
+                    e.target.checked
+                      ? [...selectedTexts, idx]
+                      : selectedTexts.filter(i => i !== idx)
+                  )
+                }
+              />
+            }
+            label={t.title}
+          />
+        ))}
+      </Box>
       <Box sx={{ border: '1px solid', borderColor: 'grey.400', borderRadius: 1, p: 2, mb: 1 }}>
         <Typography sx={{ whiteSpace: 'pre-line' }}>{reservationText}</Typography>
       </Box>
