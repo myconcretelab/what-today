@@ -86,11 +86,8 @@ async function getSheetId(sheetName, token) {
 // Fichier de stockage des statuts
 const STATUS_FILE = path.join(__dirname, 'statuses.json');
 
-// Fichier de stockage des tarifs
-const PRICES_FILE = path.join(__dirname, 'prices.json');
-
-// Fichier de stockage des textes SMS
-const TEXTS_FILE = path.join(__dirname, 'texts.json');
+// Fichier de stockage des tarifs et textes
+const DATA_FILE = path.join(__dirname, 'data.json');
 
 function readStatuses() {
   if (!fs.existsSync(STATUS_FILE)) return {};
@@ -101,22 +98,33 @@ function writeStatuses(data) {
   fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
 }
 
-function readPrices() {
-  if (!fs.existsSync(PRICES_FILE)) return [];
-  return JSON.parse(fs.readFileSync(PRICES_FILE, 'utf-8'));
+function readData() {
+  if (!fs.existsSync(DATA_FILE)) return { prices: [], texts: [] };
+  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
 }
 
-function writePrices(data) {
-  fs.writeFileSync(PRICES_FILE, JSON.stringify(data, null, 2));
+function writeData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function readPrices() {
+  return readData().prices || [];
+}
+
+function writePrices(prices) {
+  const data = readData();
+  data.prices = prices;
+  writeData(data);
 }
 
 function readTexts() {
-  if (!fs.existsSync(TEXTS_FILE)) return [];
-  return JSON.parse(fs.readFileSync(TEXTS_FILE, 'utf-8'));
+  return readData().texts || [];
 }
 
-function writeTexts(data) {
-  fs.writeFileSync(TEXTS_FILE, JSON.stringify(data, null, 2));
+function writeTexts(texts) {
+  const data = readData();
+  data.texts = texts;
+  writeData(data);
 }
 
 // --- School holidays cache ---
@@ -422,6 +430,16 @@ app.get('/api/texts', (req, res) => {
 
 app.post('/api/texts', (req, res) => {
   writeTexts(req.body || []);
+  res.json({ success: true });
+});
+
+// Import/export des données complètes
+app.get('/api/data', (req, res) => {
+  res.json(readData());
+});
+
+app.post('/api/data', (req, res) => {
+  writeData(req.body || { prices: [], texts: [] });
   res.json({ success: true });
 });
 

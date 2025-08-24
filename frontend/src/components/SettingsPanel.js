@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -14,13 +14,21 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { fetchPrices, savePrices, fetchTexts, saveTexts } from '../services/api';
+import {
+  fetchPrices,
+  savePrices,
+  fetchTexts,
+  saveTexts,
+  fetchData,
+  saveData
+} from '../services/api';
 
 const GITE_OPTIONS = ['phonsine', 'gree', 'edmond', 'liberte'];
 
 export default function SettingsPanel() {
   const [prices, setPrices] = useState([]);
   const [texts, setTexts] = useState([]);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchPrices()
@@ -77,6 +85,41 @@ export default function SettingsPanel() {
 
   const handleSaveTexts = () => {
     saveTexts(texts).catch(() => {});
+  };
+
+  const handleExportData = async () => {
+    try {
+      const data = await fetchData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json'
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportData = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await saveData(data);
+      setPrices(data.prices || []);
+      setTexts(data.texts || []);
+    } catch (err) {
+      // ignore
+    }
   };
 
   return (
@@ -159,6 +202,21 @@ export default function SettingsPanel() {
       <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
         Variables: {'{dateDebut}'}, {'{dateFin}'}, {'{nom}'}, {'{nbNuits}'}
       </Typography>
+      <input
+        type="file"
+        accept="application/json"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleImportData}
+      />
+      <Box sx={{ mt: 2 }}>
+        <Button onClick={handleImportClick} sx={{ mr: 1 }}>
+          Importer
+        </Button>
+        <Button onClick={handleExportData}>
+          Exporter
+        </Button>
+      </Box>
     </Box>
   );
 }

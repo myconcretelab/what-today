@@ -141,5 +141,4 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 backend/statuses.json
-backend/prices.json
-backend/texts.json
+backend/data.json
