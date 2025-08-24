@@ -132,7 +132,7 @@ function App() {
             <AvailabilityPeriodPanel onReserve={() => setPanel(2)} />
           </Box>
           <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
-            <AvailabilityReservationPanel />
+            <AvailabilityReservationPanel onBack={() => setPanel(1)} />
           </Box>
           <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
             <SettingsPanel />
