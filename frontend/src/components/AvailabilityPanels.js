@@ -387,7 +387,7 @@ export function AvailabilityReservationPanel() {
   const nights = departure.diff(arrival, 'day');
 
   return (
-    <Box sx={{ p: 2, overflowY: 'auto' }}>
+    <Box sx={{ p: 2 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
         Réservation
       </Typography>

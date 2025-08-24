@@ -78,7 +78,7 @@ function App() {
 
   return (
     <AvailabilityProvider bookings={data.reservations}>
-      <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%', overflow: 'hidden', height: '100vh', pb: 7 }}>
+      <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%', overflow: 'hidden', height: '100vh' }}>
         <Box
           sx={{
             display: 'flex',
@@ -87,7 +87,7 @@ function App() {
             transition: 'transform 0.3s'
           }}
         >
-          <Box sx={{ width: '100%', p: 2 }}>
+          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', p: 2, pb: 7 }}>
             <CalendarBar bookings={data.reservations} errors={data.erreurs} />
             <Legend
               bookings={data.reservations}
@@ -106,13 +106,13 @@ function App() {
               onStatusChange={handleStatusChange}
             />
           </Box>
-          <Box sx={{ width: '100%' }}>
+          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
             <AvailabilityPeriodPanel onReserve={() => setPanel(2)} />
           </Box>
-          <Box sx={{ width: '100%' }}>
+          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
             <AvailabilityReservationPanel />
           </Box>
-          <Box sx={{ width: '100%' }}>
+          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
             <SettingsPanel />
           </Box>
         </Box>
