@@ -9,7 +9,8 @@ import {
   Popover,
   Checkbox,
   FormControlLabel,
-  CircularProgress
+  CircularProgress,
+  MenuItem
 } from '@mui/material';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
@@ -21,7 +22,8 @@ import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import {
   SAVE_RESERVATION,
   fetchSchoolHolidays,
-  fetchPublicHolidays
+  fetchPublicHolidays,
+  fetchPrices
 } from '../services/api';
 
 // Enable plugin
@@ -59,6 +61,8 @@ export function AvailabilityProvider({ bookings, children }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [airbnbUrl, setAirbnbUrl] = useState(null);
+  const [prices, setPrices] = useState([]);
+  const [selectedPrice, setSelectedPrice] = useState('');
 
   useEffect(() => {
     const parts = [];
@@ -91,6 +95,21 @@ export function AvailabilityProvider({ bookings, children }) {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetchPrices()
+      .then(data => setPrices(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (selectedGite) {
+      const opts = prices.filter(p => p.gites.includes(selectedGite.id));
+      setSelectedPrice(opts.length ? String(opts[0].amount) : 'other');
+    } else {
+      setSelectedPrice('');
+    }
+  }, [selectedGite, prices]);
 
   const handlePhoneChange = e => {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -136,6 +155,8 @@ export function AvailabilityProvider({ bookings, children }) {
         end: departure.format('DD/MM/YYYY'),
         summary: info.replace(/\n/g, ' ')
       };
+      const priceNum = selectedPrice && selectedPrice !== 'other' ? Number(selectedPrice) : null;
+      if (priceNum != null) payload.price = priceNum;
 
       try {
         const res = await fetch(SAVE_RESERVATION, {
@@ -191,13 +212,18 @@ export function AvailabilityProvider({ bookings, children }) {
       </div>
     );
   };
-
+  const nightCount = departure.diff(arrival, 'day');
+  const priceNum = selectedPrice && selectedPrice !== 'other' ? Number(selectedPrice) : null;
+  const priceLine =
+    priceNum != null
+      ? `\nLe tarif est de ${priceNum}€/nuit, soit ${priceNum * nightCount}€.`
+      : '';
   const reservationText = selectedGite
     ? `Bonjour,\nJe vous confirme votre réservation pour le gîte ${GITE_LABELS[selectedGite.id]} du ${arrival
         .locale('fr')
         .format('D MMMM YYYY')} à partir de 17h au ${departure
         .locale('fr')
-        .format('D MMMM YYYY')} midi.\nMerci Beaucoup,\nSoazig Molinier`
+        .format('D MMMM YYYY')} midi.${priceLine}\nMerci Beaucoup,\nSoazig Molinier`
     : '';
 
   return (
@@ -225,7 +251,10 @@ export function AvailabilityProvider({ bookings, children }) {
         saveError,
         airbnbUrl,
         reservationText,
-        renderDayContent
+        renderDayContent,
+        selectedPrice,
+        setSelectedPrice,
+        prices
       }}
     >
       {children}
@@ -370,7 +399,10 @@ export function AvailabilityReservationPanel() {
     saving,
     saveError,
     airbnbUrl,
-    reservationText
+    reservationText,
+    selectedPrice,
+    setSelectedPrice,
+    prices
   } = useContext(AvailabilityContext);
 
   const nightCount = departure.diff(arrival, 'day');
@@ -406,6 +438,24 @@ export function AvailabilityReservationPanel() {
         onChange={e => setName(e.target.value)}
         sx={{ mb: 1 }}
       />&nbsp;&nbsp;
+      <TextField
+        select
+        label="Prix/nuit"
+        value={selectedPrice}
+        onChange={e => setSelectedPrice(e.target.value)}
+        sx={{ mb: 1, minWidth: 120 }}
+      >
+        {selectedGite &&
+          prices
+            .filter(p => p.gites.includes(selectedGite.id))
+            .map(p => (
+              <MenuItem key={p.amount} value={String(p.amount)}>
+                {p.amount}€
+              </MenuItem>
+            ))}
+        <MenuItem value="other">autre</MenuItem>
+      </TextField>
+      &nbsp;&nbsp;
       <FormControlLabel
         control={<Checkbox checked={draps} onChange={e => setDraps(e.target.checked)} />}
         label="Draps"
