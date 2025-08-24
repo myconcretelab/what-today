@@ -86,6 +86,9 @@ async function getSheetId(sheetName, token) {
 // Fichier de stockage des statuts
 const STATUS_FILE = path.join(__dirname, 'statuses.json');
 
+// Fichier de stockage des tarifs
+const PRICES_FILE = path.join(__dirname, 'prices.json');
+
 function readStatuses() {
   if (!fs.existsSync(STATUS_FILE)) return {};
   return JSON.parse(fs.readFileSync(STATUS_FILE, 'utf-8'));
@@ -93,6 +96,15 @@ function readStatuses() {
 
 function writeStatuses(data) {
   fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
+}
+
+function readPrices() {
+  if (!fs.existsSync(PRICES_FILE)) return [];
+  return JSON.parse(fs.readFileSync(PRICES_FILE, 'utf-8'));
+}
+
+function writePrices(data) {
+  fs.writeFileSync(PRICES_FILE, JSON.stringify(data, null, 2));
 }
 
 // --- School holidays cache ---
@@ -381,9 +393,19 @@ app.post('/api/statuses/:id', (req, res) => {
   res.json(statuses[req.params.id]);
 });
 
+// Gestion des tarifs
+app.get('/api/prices', (req, res) => {
+  res.json(readPrices());
+});
+
+app.post('/api/prices', (req, res) => {
+  writePrices(req.body || []);
+  res.json({ success: true });
+});
+
 app.post('/api/save-reservation', async (req, res) => {
   try {
-    const { giteId, name, start, end, summary } = req.body;
+    const { giteId, name, start, end, summary, price } = req.body;
     const sheetName = SHEET_NAMES[giteId];
     if (!sheetName) return res.status(400).json({ success: false, error: 'Invalid gite' });
 
@@ -435,13 +457,15 @@ app.post('/api/save-reservation', async (req, res) => {
       })
     });
 
+    const priceValue = typeof price === 'number' ? price : '';
+
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${insertRow}:J${insertRow}?valueInputOption=USER_ENTERED`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          values: [[name, start, end, '', '', '', '', '', '', summary.replace(/\n/g, ' ')]]
+          values: [[name, start, end, '', '', '', priceValue, '', '', summary.replace(/\n/g, ' ')]]
         })
       }
     );
