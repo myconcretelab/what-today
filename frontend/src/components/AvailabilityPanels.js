@@ -225,7 +225,8 @@ export function AvailabilityProvider({ bookings, children }) {
         saving,
         saveError,
         airbnbUrl,
-        reservationText
+        reservationText,
+        renderDayContent
       }}
     >
       {children}
@@ -244,7 +245,8 @@ export function AvailabilityPeriodPanel({ onReserve }) {
     handleClosePicker,
     handleRangeChange,
     availability,
-    handleReserve
+    handleReserve,
+    renderDayContent
   } = useContext(AvailabilityContext);
 
   return (
