@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Tooltip, Avatar, Card, CardContent } from '@mui/material';
+import { Box, Typography, Tooltip, Avatar, Card, CardContent, useMediaQuery } from '@mui/material';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
 import {
@@ -9,6 +9,8 @@ import {
   borderWidth,
   borderColor
 } from '../utils';
+
+
 
 // Animation légère pour les arrivées du jour
 const pulse = keyframes`
@@ -23,6 +25,7 @@ const pulse = keyframes`
  * (une couleur par source). Tooltip au survol pour voir le détail.
 */
 function CalendarBar({ bookings, errors }) {
+  const isMobile = useMediaQuery(theme => theme.breakpoints.down("sm")); // Détection mobile/tablette
   // Construction de la structure { date -> [events] }
   const initialEvents = bookings.flatMap(ev => {
     const debut = dayjs(ev.debut);
@@ -69,9 +72,9 @@ function CalendarBar({ bookings, errors }) {
                 borderRight: idx !== days.length - 1 ? '1px solid #ccc' : 'none'
               }}
             >
-              <Typography variant="caption">
-                {date.format('dddd DD')}
-              </Typography>
+             <Typography variant="caption">
+              {isMobile ? date.format("dd DD") : date.format("dddd DD")}
+            </Typography>
               <Box
                 sx={{
                   display: 'flex',

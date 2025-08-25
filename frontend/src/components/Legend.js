@@ -66,14 +66,7 @@ function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing })
           mb: 0.5
         }}
       >
-        {gites.map(([id, name]) => (
-          <Box key={id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Avatar sx={{ width: 16, height: 16, fontSize: 12 }}>
-              {giteInitial(id)}
-            </Avatar>
-            <Typography variant="caption">{name}</Typography>
-          </Box>
-        ))}
+
       </Box>
       <Box
         sx={{
