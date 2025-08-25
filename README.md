@@ -40,16 +40,13 @@ Le serveur écoute par défaut sur le port **3001** et charge les fichiers `ics`
 une seule fois au démarrage.
 
 ### Lancer le frontend
-Ce dépôt fournit uniquement le code source React. Utilisez le bundler de votre
-choix (Vite, Create React App, etc.). Exemple avec Vite :
 ```bash
-npm create vite@latest frontend -- --template react
+cd frontend
+npm run dev
 ```
-Copiez ensuite le contenu du dossier `frontend/src` dans votre application
-Vite et ajoutez les dépendances indiquées dans `frontend/package.json`.
 
 Définissez le mot de passe attendu côté frontend via une variable
-d'environnement `REACT_APP_PASSWORD` (par défaut : `secret`).
+d'environnement `VITE_PASSWORD` (par défaut : `secret`).
 
 ## Tests
 Aucun test automatisé n'est encore défini. Les commandes `npm test` dans les
@@ -66,7 +63,8 @@ what-today/
 │   │   ├── components/ # Login, calendrier, liste, loader
 │   │   ├── services/   # Accès API
 │   │   ├── App.js
-│   │   └── index.js
+│   │   └── main.jsx
+│   ├── index.html
 │   └── package.json
 └── README.md
 ```
