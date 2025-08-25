@@ -125,7 +125,7 @@ export default function SettingsPanel() {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
       <Typography variant="h4" sx={{ mb: 2 }}>
         Réglages
       </Typography>
