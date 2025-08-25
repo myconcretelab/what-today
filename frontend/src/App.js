@@ -109,7 +109,16 @@ function App() {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', p: 2, pb: 7 }}>
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              overflowY: 'auto',
+              p: 2,
+              pl: { xs: 1, sm: 2 },
+              pb: 7
+            }}
+          >
             <CalendarBar bookings={data.reservations} errors={data.erreurs} />
             <Legend
               bookings={data.reservations}
@@ -146,22 +155,43 @@ function App() {
             width: '100%',
             bgcolor: '#f48fb1',
             display: 'flex',
-            justifyContent: 'space-around',
             py: 1
           }}
         >
-          <IconButton onClick={() => setPanel(0)} sx={{ color: '#fff' }}>
-            <AccessTimeIcon />
-          </IconButton>
-          <IconButton onClick={() => setPanel(1)} sx={{ color: '#fff' }}>
-            <CalendarMonthIcon />
-          </IconButton>
-          <IconButton onClick={() => setPanel(2)} sx={{ color: '#fff' }}>
-            <EditIcon />
-          </IconButton>
-          <IconButton onClick={() => setPanel(3)} sx={{ color: '#fff' }}>
-            <SettingsIcon />
-          </IconButton>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: -6,
+              left: `calc((100% / 4) * ${panel} + (100% / 8))`,
+              transform: 'translateX(-50%)',
+              width: 16,
+              height: 16,
+              border: '2px solid #fff',
+              borderRadius: '50%',
+              transition: 'left 0.3s',
+              pointerEvents: 'none'
+            }}
+          />
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <IconButton onClick={() => setPanel(0)} sx={{ color: '#fff' }}>
+              <AccessTimeIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <IconButton onClick={() => setPanel(1)} sx={{ color: '#fff' }}>
+              <CalendarMonthIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <IconButton onClick={() => setPanel(2)} sx={{ color: '#fff' }}>
+              <EditIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <IconButton onClick={() => setPanel(3)} sx={{ color: '#fff' }}>
+              <SettingsIcon />
+            </IconButton>
+          </Box>
         </Box>
       </Box>
     </AvailabilityProvider>

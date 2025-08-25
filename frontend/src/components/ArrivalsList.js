@@ -106,7 +106,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
       {['today', 'tomorrow'].map(key => (
         <Card key={key} sx={{ mb: 2, boxShadow: 3 }}>
           <CardContent>

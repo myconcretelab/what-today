@@ -317,7 +317,7 @@ export function AvailabilityPeriodPanel({ onReserve }) {
   const nightCount = departure.diff(arrival, 'day');
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Choisir des dates
       </Typography>
@@ -449,7 +449,7 @@ export function AvailabilityReservationPanel({ onBack }) {
   } = useContext(AvailabilityContext);
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
         <IconButton onClick={onBack} size="large">
           <ArrowBackIcon fontSize="large" />
