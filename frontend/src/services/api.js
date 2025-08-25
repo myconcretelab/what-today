@@ -1,4 +1,4 @@
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD = import.meta.env.PROD;
 const API_BASE = IS_PROD ? '' : 'http://localhost:3001';
 
 const ARRIVALS_URL = `${API_BASE}/api/arrivals`;

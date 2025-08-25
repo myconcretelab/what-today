@@ -71,7 +71,7 @@ function App() {
 
   // Fonction de validation du mot de passe
   const handleLogin = password => {
-    const expected = process.env.REACT_APP_PASSWORD || 'secret';
+    const expected = import.meta.env.VITE_PASSWORD || 'secret';
     if (password === expected) {
       localStorage.setItem(AUTH_KEY, 'true');
       setAuth(true);
