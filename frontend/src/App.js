@@ -96,7 +96,7 @@ function App() {
 
   return (
     <AvailabilityProvider bookings={data.reservations}>
-      <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%', overflow: 'hidden', height: '100vh' }}>
+      <Box sx={{ width: '100%', overflow: 'hidden', height: '100vh' }}>
         <Box
           sx={{
             display: 'flex',

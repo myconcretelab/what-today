@@ -9,6 +9,8 @@ import {
   InputLabel,
   Select,
   OutlinedInput,
+  Card,
+  CardContent,
   Chip,
   MenuItem
 } from '@mui/material';
@@ -124,84 +126,101 @@ export default function SettingsPanel() {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
+      <Typography variant="h4" sx={{ mb: 2 }}>
         Réglages
       </Typography>
-      {prices.map((p, idx) => (
-        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <TextField
-            type="number"
-            label="Prix"
-            value={p.amount}
-            onChange={e => handleAmountChange(idx, e.target.value)}
-            sx={{ width: 100 }}
-          />
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel>Gîtes</InputLabel>
-            <Select
-              multiple
-              value={p.gites}
-              onChange={e => handleGitesChange(idx, e.target.value)}
-              input={<OutlinedInput label="Gîtes" />}
-              renderValue={selected => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map(value => (
-                    <Chip key={value} label={value} />
+      <Card sx={{ mb: 2, boxShadow: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 3 }}>
+            Gestion des prix
+          </Typography>      
+          {prices.map((p, idx) => (
+            <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <TextField
+                type="number"
+                label="Prix"
+                value={p.amount}
+                onChange={e => handleAmountChange(idx, e.target.value)}
+                sx={{ width: 100 }}
+              />
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>Gîtes</InputLabel>
+                <Select
+                  multiple
+                  value={p.gites}
+                  onChange={e => handleGitesChange(idx, e.target.value)}
+                  input={<OutlinedInput label="Gîtes" />}
+                  renderValue={selected => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map(value => (
+                        <Chip key={value} label={value} />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  {GITE_OPTIONS.map(g => (
+                    <MenuItem key={g} value={g}>
+                      {g}
+                    </MenuItem>
                   ))}
-                </Box>
-              )}
-            >
-              {GITE_OPTIONS.map(g => (
-                <MenuItem key={g} value={g}>
-                  {g}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <IconButton onClick={() => removePrice(idx)}>
-            <DeleteIcon />
-          </IconButton>
-        </Box>
-      ))}
-      <Button startIcon={<AddIcon />} onClick={addPrice} sx={{ mr: 1 }}>
-        Ajouter
-      </Button>
-      <Button variant="contained" onClick={handleSave}>
-        Sauvegarder
-      </Button>
-      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
-        Textes SMS
-      </Typography>
-      {texts.map((t, idx) => (
-        <Box key={idx} sx={{ mb: 1 }}>
-          <TextField
-            label="Titre"
-            value={t.title}
-            onChange={e => handleTitleChange(idx, e.target.value)}
-            sx={{ mr: 1 }}
-          />
-          <IconButton onClick={() => removeText(idx)}>
-            <DeleteIcon />
-          </IconButton>
-          <TextField
-            multiline
-            rows={2}
-            fullWidth
-            value={t.text}
-            onChange={e => handleTextChange(idx, e.target.value)}
-            sx={{ mt: 1 }}
-          />
-        </Box>
-      ))}
-      <Button startIcon={<AddIcon />} onClick={addText} sx={{ mr: 1 }}>
-        Ajouter
-      </Button>
-      <Button variant="contained" onClick={handleSaveTexts} sx={{ mr: 1 }}>
-        Sauvegarder
-      </Button>
-      <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
-        Variables: {'{dateDebut}'}, {'{dateFin}'}, {'{nom}'}, {'{nbNuits}'}
-      </Typography>
+                </Select>
+              </FormControl>
+              <IconButton onClick={() => removePrice(idx)}>
+                <DeleteIcon />
+              </IconButton>
+            </Box>
+          ))}
+          <Box sx={{ display: "flex", alignItems: "center", mt: 4, mb: 2 }}>
+            <Button startIcon={<AddIcon />} onClick={addPrice} sx={{ mr: 1 }}>
+              Ajouter
+            </Button>
+            <Button variant="contained" onClick={handleSave}>
+              Sauvegarder
+            </Button>
+          </Box>
+          </CardContent>
+      </Card>
+      <Card sx={{ mb: 2, boxShadow: 3 }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", mt: 4, mb: 2 }}>
+            <Typography variant="h6"  sx={{ mb: 2 }}>
+              Textes SMS
+            </Typography>
+            <Typography variant="caption" sx={{ ml: 2 }}>
+              Variables: {'{dateDebut}'}, {'{dateFin}'}, {'{nom}'}, {'{nbNuits}'}
+            </Typography>
+          </Box>    
+          {texts.map((t, idx) => (
+            <Box key={idx} sx={{ mb: 5 }}>
+              <TextField
+                label="Titre"
+                value={t.title}
+                onChange={e => handleTitleChange(idx, e.target.value)}
+                sx={{ mr: 1 }}
+              />
+              <IconButton onClick={() => removeText(idx)}>
+                <DeleteIcon />
+              </IconButton>
+              <TextField
+                multiline
+                rows={2}
+                fullWidth
+                value={t.text}
+                onChange={e => handleTextChange(idx, e.target.value)}
+                sx={{ mt: 1 }}
+              />
+            </Box>
+          ))}
+          <Box sx={{ display: "flex", alignItems: "center", mt: 4, mb: 2 }}>
+            <Button startIcon={<AddIcon />} onClick={addText} sx={{ mr: 1 }}>
+              Ajouter
+            </Button>
+            <Button variant="contained" onClick={handleSaveTexts} sx={{ mr: 1 }}>
+              Sauvegarder
+            </Button>
+          </Box>
+        </CardContent>
+      </Card> 
       <input
         type="file"
         accept="application/json"
@@ -209,14 +228,21 @@ export default function SettingsPanel() {
         style={{ display: 'none' }}
         onChange={handleImportData}
       />
-      <Box sx={{ mt: 2 }}>
-        <Button onClick={handleImportClick} sx={{ mr: 1 }}>
-          Importer
-        </Button>
-        <Button onClick={handleExportData}>
-          Exporter
-        </Button>
-      </Box>
+      <Card sx={{ mb: 2, boxShadow: 3 }}>
+        <CardContent>
+          <Box sx={{ mt: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Paramètres d'import/export des données
+          </Typography>   
+            <Button variant="outlined" onClick={handleImportClick} sx={{ mr: 1 }}>
+              Importer
+            </Button>
+            <Button variant="contained" onClick={handleExportData}>
+              Exporter
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
     </Box>
   );
 }
