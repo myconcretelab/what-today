@@ -161,11 +161,11 @@ function App() {
           <Box
             sx={{
               position: 'absolute',
-              top: -6,
+              top: 8,
               left: `calc((100% / 4) * ${panel} + (100% / 8))`,
               transform: 'translateX(-50%)',
-              width: 16,
-              height: 16,
+              width:40,
+              height: 40,
               border: '2px solid #fff',
               borderRadius: '50%',
               transition: 'left 0.3s',
