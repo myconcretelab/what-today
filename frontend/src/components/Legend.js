@@ -35,11 +35,27 @@ function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing })
           <MenuItem value="Soaz">Soaz</MenuItem>
           <MenuItem value="Seb">Seb</MenuItem>
         </Select>
-        <Box>
-          <IconButton onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
-          </IconButton>
-        </Box>
+      <Box sx={{ mr: 5 }}>
+        <IconButton
+          onClick={onRefresh}
+          disabled={refreshing}
+          sx={{
+            size: 40, // taille de l'icône
+            bgcolor: "#f48fb1", // couleur de fond par défaut
+            color: "#fff", // couleur de l'icône
+            "&:hover": {
+              bgcolor: "#f46796ff" // couleur au survol
+            },
+            "&.Mui-disabled": {
+              bgcolor: "grey.100", // couleur quand désactivé
+              color: "grey.400"
+            }
+          }}
+        >
+          {refreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
+        </IconButton>
+      </Box>
+
       </Box>
       <Box
         sx={{

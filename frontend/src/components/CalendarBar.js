@@ -57,7 +57,7 @@ function CalendarBar({ bookings, errors }) {
   });
 
   return (
-    <Card sx={{ mb: 2, boxShadow: 3 }}>
+    <Card sx={{ mb: 3, pb:0, boxShadow: 3 }}>
       <CardContent sx={{ p: 1 }}>
         <Box sx={{ display: 'flex', overflowX: 'auto', width: '100%' }}>
           {days.map(({ date, events }, idx) => (
@@ -70,7 +70,7 @@ function CalendarBar({ bookings, errors }) {
               }}
             >
               <Typography variant="caption">
-                {date.format('dd DD/MM')}
+                {date.format('dddd DD')}
               </Typography>
               <Box
                 sx={{
