@@ -59,13 +59,28 @@ function CalendarBar({ bookings, errors }) {
   return (
     <Card sx={{ mb: 2, boxShadow: 3 }}>
       <CardContent sx={{ p: 1 }}>
-        <Box sx={{ display: 'flex', overflowX: 'auto' }}>
-          {days.map(({ date, events }) => (
-            <Box key={date.format('YYYY-MM-DD')} sx={{ textAlign: 'center', flex: 1 }}>
+        <Box sx={{ display: 'flex', overflowX: 'auto', width: '100%' }}>
+          {days.map(({ date, events }, idx) => (
+            <Box
+              key={date.format('YYYY-MM-DD')}
+              sx={{
+                textAlign: 'center',
+                flex: 1,
+                borderRight: idx !== days.length - 1 ? '1px solid #ccc' : 'none'
+              }}
+            >
               <Typography variant="caption">
                 {date.format('dd DD/MM')}
               </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  mt: 0.5
+                }}
+              >
                 {events.slice(0, 3).map((ev, idx) => {
                   const color = sourceColor(ev.source);
                   const initial = giteInitial(ev.giteId);
