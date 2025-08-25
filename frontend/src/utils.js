@@ -47,8 +47,8 @@ export function giteInitial(id) {
 export const BORDER = {
   widths: {
     arrival: 3,
-    depart: 1,
-    both: 2
+    depart: 3,
+    both: 3
   },
   colors: {
     arrival: COLORS.events.arrival,

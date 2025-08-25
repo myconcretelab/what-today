@@ -83,7 +83,7 @@ function CalendarBar({ bookings, errors }) {
                           width: 24,
                           height: 24,
                           fontSize: 16,
-                          boxShadow: 2,
+                          boxShadow: 0,
                           border: `${bw}px solid`,
                           borderColor: borderClr,
                           transition: 'transform 0.2s',
