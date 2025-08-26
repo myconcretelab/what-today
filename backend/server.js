@@ -519,7 +519,7 @@ app.post('/api/save-reservation', async (req, res) => {
 
 // --- Servir le build React ---
 // Chemin absolu vers le dossier build de React
-const buildPath = path.join(__dirname, '../frontend/build');
+const buildPath = path.join(__dirname, '../frontend/dist');
 app.use(express.static(buildPath));
 
 // Pour toutes les routes qui ne sont pas API, servir index.html (React Router)
