@@ -11,6 +11,7 @@ import {
 } from './services/api';
 import { Box, IconButton } from '@mui/material';
 import Legend from './components/Legend';
+import PullToRefresh from './components/PullToRefresh';
 import {
   AvailabilityProvider,
   AvailabilityPeriodPanel,
@@ -34,7 +35,6 @@ function App() {
   const [selectedUser, setSelectedUser] = useState(
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
-  const [refreshing, setRefreshing] = useState(false);
   const [panel, setPanel] = useState(0);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -85,10 +85,7 @@ function App() {
   };
 
   const handleRefresh = () => {
-    setRefreshing(true);
-    refreshCalendars()
-      .then(() => loadData())
-      .finally(() => setRefreshing(false));
+    return refreshCalendars().then(() => loadData());
   };
 
   if (!auth) return <Login onLogin={handleLogin} />;
@@ -109,7 +106,8 @@ function App() {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <Box
+          <PullToRefresh
+            onRefresh={handleRefresh}
             sx={{
               width: '100%',
               height: '100%',
@@ -127,8 +125,6 @@ function App() {
                 setSelectedUser(user);
                 localStorage.setItem(USER_KEY, user);
               }}
-              onRefresh={handleRefresh}
-              refreshing={refreshing}
             />
             <ArrivalsList
               bookings={data.reservations}
@@ -136,16 +132,25 @@ function App() {
               statuses={statuses}
               onStatusChange={handleStatusChange}
             />
-          </Box>
-          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
+          </PullToRefresh>
+          <PullToRefresh
+            onRefresh={handleRefresh}
+            sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
+          >
             <AvailabilityPeriodPanel onReserve={() => setPanel(2)} />
-          </Box>
-          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
+          </PullToRefresh>
+          <PullToRefresh
+            onRefresh={handleRefresh}
+            sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
+          >
             <AvailabilityReservationPanel onBack={() => setPanel(1)} />
-          </Box>
-          <Box sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}>
+          </PullToRefresh>
+          <PullToRefresh
+            onRefresh={handleRefresh}
+            sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
+          >
             <SettingsPanel />
-          </Box>
+          </PullToRefresh>
         </Box>
         <Box
           sx={{

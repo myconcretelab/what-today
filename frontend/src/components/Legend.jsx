@@ -1,20 +1,8 @@
 import React from 'react';
-import {
-  Box,
-  Typography,
-  Avatar,
-  Select,
-  MenuItem,
-  IconButton,
-  CircularProgress
-} from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { sourceColor, giteInitial } from '../utils';
+import { Box, Typography, Select, MenuItem } from '@mui/material';
+import { sourceColor } from '../utils';
 
-function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing }) {
-  const gites = Array.from(
-    new Map(bookings.map(b => [b.giteId, b.giteNom])).entries()
-  );
+function Legend({ bookings, selectedUser, onUserChange }) {
   const sources = Array.from(new Set(bookings.map(b => b.source)));
 
   return (
@@ -35,38 +23,6 @@ function Legend({ bookings, selectedUser, onUserChange, onRefresh, refreshing })
           <MenuItem value="Soaz">Soaz</MenuItem>
           <MenuItem value="Seb">Seb</MenuItem>
         </Select>
-      <Box sx={{ mr: 5 }}>
-        <IconButton
-          onClick={onRefresh}
-          disabled={refreshing}
-          sx={{
-            size: 40, // taille de l'icône
-            bgcolor: "#f48fb1", // couleur de fond par défaut
-            color: "#fff", // couleur de l'icône
-            "&:hover": {
-              bgcolor: "#f46796ff" // couleur au survol
-            },
-            "&.Mui-disabled": {
-              bgcolor: "grey.100", // couleur quand désactivé
-              color: "grey.400"
-            }
-          }}
-        >
-          {refreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
-        </IconButton>
-      </Box>
-
-      </Box>
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          gap: 1,
-          mb: 0.5
-        }}
-      >
-
       </Box>
       <Box
         sx={{
