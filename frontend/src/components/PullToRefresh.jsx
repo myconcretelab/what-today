@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 
 const THRESHOLD = 60;
+// Factor applied to finger movement to create a rubber band effect
+const DAMPING = 0.5;
 
 function PullToRefresh({ onRefresh, children, sx = {} }) {
   const ref = useRef(null);
@@ -9,6 +11,7 @@ function PullToRefresh({ onRefresh, children, sx = {} }) {
   const [pull, setPull] = useState(0);
   const pullRef = useRef(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const setPullState = value => {
     pullRef.current = value;
@@ -24,6 +27,7 @@ function PullToRefresh({ onRefresh, children, sx = {} }) {
     const handleTouchStart = e => {
       if (el.scrollTop === 0) {
         startY.current = e.touches[0].clientY;
+        setDragging(true);
       }
     };
 
@@ -34,17 +38,21 @@ function PullToRefresh({ onRefresh, children, sx = {} }) {
           if (e.cancelable) {
             e.preventDefault();
           }
-          setPullState(diff);
+          const damped = diff * DAMPING;
+          setPullState(damped);
         }
       }
     };
 
     const handleTouchEnd = () => {
+      setDragging(false);
       if (pullRef.current > THRESHOLD) {
+        setPullState(THRESHOLD);
         setRefreshing(true);
         Promise.resolve(onRefresh()).finally(() => {
-          setRefreshing(false);
           setPullState(0);
+          // Wait for the collapse animation before hiding the spinner
+          setTimeout(() => setRefreshing(false), 300);
         });
       } else {
         setPullState(0);
@@ -75,7 +83,8 @@ function PullToRefresh({ onRefresh, children, sx = {} }) {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#424242',
-          width: '100%'
+          width: '100%',
+          transition: dragging ? 'none' : 'height 0.3s ease-out'
         }}
       >
         {refreshing && <CircularProgress size={24} sx={{ color: '#f48fb1' }} />}
