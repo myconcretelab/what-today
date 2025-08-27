@@ -22,6 +22,7 @@ import {
   borderWidth,
   statusBorderColor
 } from '../utils';
+import { fetchComments } from '../services/api';
 
 /**
  * Liste des arrivées à venir (aujourd'hui + 6 jours).
@@ -35,20 +36,14 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
 
   React.useEffect(() => {
     const load = async () => {
-      const result = {};
-      for (const b of bookings) {
-        const key = `${b.giteId}_${b.debut}`;
-        const date = dayjs(b.debut).format('YYYY-MM-DD');
-        try {
-          console.log(`Fetching comment for ${b.giteId} on ${date}`);
-          const res = await fetch(`/api/comments/${b.giteId}/${date}`);
-          const data = await res.json();
-          result[key] = data.comment;
-        } catch {
-          result[key] = 'pas de commentaires';
-        }
+      const start = today.format('YYYY-MM-DD');
+      const end = today.add(6, 'day').format('YYYY-MM-DD');
+      try {
+        const data = await fetchComments(start, end);
+        setComments(data);
+      } catch {
+        setComments({});
       }
-      setComments(result);
     };
     if (bookings.length > 0) {
       load();

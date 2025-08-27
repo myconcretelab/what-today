@@ -415,6 +415,39 @@ app.post('/api/statuses/:id', (req, res) => {
   res.json(statuses[req.params.id]);
 });
 
+// Récupération des commentaires pour une plage de dates
+app.get('/api/comments-range', async (req, res) => {
+  const { start, end } = req.query;
+  if (!start || !end) {
+    return res.status(400).json({ success: false, error: 'Missing date range' });
+  }
+  try {
+    const token = await getAccessToken();
+    const startDate = dayjs(start, 'YYYY-MM-DD');
+    const endDate = dayjs(end, 'YYYY-MM-DD');
+    const results = {};
+    for (const [giteId, sheetName] of Object.entries(SHEET_NAMES)) {
+      const valueRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:J`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const valueData = await valueRes.json();
+      const rows = valueData.values || [];
+      for (const row of rows) {
+        const rowDate = dayjs(row[0], 'DD/MM/YYYY');
+        if (!rowDate.isBefore(startDate) && !rowDate.isAfter(endDate)) {
+          const key = `${giteId}_${rowDate.format('YYYY-MM-DD')}`;
+          results[key] = row[8] && row[8].trim() ? row[8] : 'pas de commentaires';
+        }
+      }
+    }
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Récupération d'un commentaire de Google Sheet
 app.get('/api/comments/:giteId/:date', async (req, res) => {
   const { giteId, date } = req.params;
