@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   Box,
   Card,
+  CardContent,
   Chip,
   Typography,
   TextField,
@@ -322,11 +323,11 @@ export function AvailabilityPeriodPanel({ onReserve }) {
         Choisir des dates
       </Typography>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-        <TextField
+        <TextField sx={{ width: 320 }}
           label="Période"
           value={`${arrival.format('YYYY-MM-DD')} - ${departure.format('YYYY-MM-DD')}`}
           onClick={handleOpenPicker}
-          InputProps={{ readOnly: true }}
+          InputProps={{ readOnly: true, sx: { fontSize: 22 }}}
         />
         <Popover
           open={Boolean(anchorEl)}
@@ -465,6 +466,10 @@ export function AvailabilityReservationPanel({ onBack }) {
           <Chip label={`${nightCount} nuits`} size="small" sx={{ bgcolor: '#f48fb1', color: '#fff' }} />
         </Typography>
       )}
+      
+<Card sx={{ mb: 2, boxShadow: 3 }}>
+          <CardContent>
+
       <Typography variant="h6" sx={{ mb: 1 }}>
         Infos Résa
       </Typography>
@@ -536,6 +541,10 @@ export function AvailabilityReservationPanel({ onBack }) {
           Calendrier Airbnb
         </Button>
       </Box>
+      </CardContent>
+      </Card>
+<Card sx={{ mb: 2, boxShadow: 3 }}>
+          <CardContent>
       <Typography variant="h6" sx={{ mb: 1 }}>
         SMS
       </Typography>
@@ -570,6 +579,9 @@ export function AvailabilityReservationPanel({ onBack }) {
       >
         Copier
       </Button>
+      </CardContent>
+      </Card>
     </Box>
+    
   );
 }
