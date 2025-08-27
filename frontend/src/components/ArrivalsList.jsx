@@ -31,6 +31,27 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   const today = dayjs().startOf('day');
   const tomorrow = today.add(1, 'day');
   const theme = useTheme();
+  const [comments, setComments] = React.useState({});
+
+  React.useEffect(() => {
+    const load = async () => {
+      const result = {};
+      for (const b of bookings) {
+        const key = `${b.giteId}_${b.debut}`;
+        try {
+          const res = await fetch(`/api/comments/${b.giteId}/${b.debut}`);
+          const data = await res.json();
+          result[key] = data.comment;
+        } catch {
+          result[key] = 'pas de commentaires';
+        }
+      }
+      setComments(result);
+    };
+    if (bookings.length > 0) {
+      load();
+    }
+  }, [bookings]);
 
   const initialEvents = bookings.flatMap(ev => {
     const debut = dayjs(ev.debut);
@@ -117,20 +138,22 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
               {groupes[key].map(ev => {
                 const color = sourceColor(ev.source);
                 const initial = giteInitial(ev.giteId);
-                const status = statuses[ev.id]?.done;
-                const user = statuses[ev.id]?.user;
-                const bg = eventColor(ev.type);
-                const itemBg = status ? theme.palette.grey[200] : bg;
-                const textColor = status
-                  ? theme.palette.text.primary
-                  : theme.palette.getContrastText(itemBg);
+              const status = statuses[ev.id]?.done;
+              const user = statuses[ev.id]?.user;
+              const bg = eventColor(ev.type);
+              const itemBg = status ? theme.palette.grey[200] : bg;
+              const textColor = status
+                ? theme.palette.text.primary
+                : theme.palette.getContrastText(itemBg);
 
-                const bw = borderWidth(ev.type);
-                return (
-                  <ListItem
-                    key={ev.id}
-                    sx={{
-                      bgcolor: itemBg,
+              const bw = borderWidth(ev.type);
+              const commentKey = `${ev.giteId}_${ev.debut}`;
+              const comment = comments[commentKey];
+              return (
+                <ListItem
+                  key={ev.id}
+                  sx={{
+                    bgcolor: itemBg,
                       color: textColor,
                       mb: 1,
                       border: `${bw}px solid`,
@@ -152,7 +175,14 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     </ListItemAvatar>
                     <ListItemText
                       primary={ev.giteNom}
-                      secondary={format(ev.date)}
+                      secondary={
+                        <>
+                          {format(ev.date)}
+                          <Typography component="span" variant="caption" display="block">
+                            {comment || 'pas de commentaires'}
+                          </Typography>
+                        </>
+                      }
                       primaryTypographyProps={{ sx: { color: 'inherit' } }}
                       secondaryTypographyProps={{ sx: { color: 'inherit' } }}
                     />
@@ -206,6 +236,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 ? theme.palette.text.primary
                 : theme.palette.getContrastText(itemBg);
               const bw = borderWidth(ev.type);
+              const commentKey = `${ev.giteId}_${ev.debut}`;
+              const comment = comments[commentKey];
               return (
                 <ListItem
                   key={ev.id}
@@ -232,6 +264,11 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                   </ListItemAvatar>
                   <ListItemText
                     primary={`${format(ev.date)} - ${ev.giteNom}`}
+                    secondary={
+                      <Typography component="span" variant="caption">
+                        {comment || 'pas de commentaires'}
+                      </Typography>
+                    }
                     primaryTypographyProps={{ sx: { color: 'inherit' } }}
                   />
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
