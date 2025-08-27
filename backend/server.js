@@ -431,16 +431,15 @@ app.get('/api/comments/:giteId/:date', async (req, res) => {
     );
     const valueData = await valueRes.json();
     const rows = valueData.values || [];
-    const targetDate = dayjs(date, 'YYYY-MM-DD');
+    const targetDate = dayjs(date, 'YYYY-MM-DD').format('DD/MM/YYYY');
     let comment = 'pas de commentaires';
     for (const row of rows) {
-      const rowDate = dayjs(row[0], 'DD/MM/YYYY');
-      if (rowDate.isSame(targetDate, 'day')) {
+      if (row[0] === targetDate) {
         comment = row[8] && row[8].trim() ? row[8] : 'pas de commentaires';
         break;
       }
     }
-    console.log(`Recherche commentaire pour ${giteId} le ${date}: ${comment}`);
+    console.log(`Recherche commentaire pour ${giteId} le ${targetDate}: ${comment}`);
     console.timeEnd('sheet-load');
     res.json({ comment });
   } catch (err) {
