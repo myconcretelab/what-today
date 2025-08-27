@@ -271,6 +271,7 @@ let erreurs = new Set();
  * Cette fonction est exécutée une seule fois au démarrage du serveur.
  */
 async function chargerCalendriers() {
+  console.time('ical-load');
   for (const gite of GITES) {
     for (const source of gite.sources) {
       try {
@@ -337,6 +338,7 @@ async function chargerCalendriers() {
     const fin = dayjs(ev.fin);
     return fin.isAfter(startWindow);
   });
+  console.timeEnd('ical-load');
 }
 
 function formatIcalDate(d) {
@@ -411,6 +413,39 @@ app.post('/api/statuses/:id', (req, res) => {
   statuses[req.params.id] = { done: req.body.done, user: req.body.user };
   writeStatuses(statuses);
   res.json(statuses[req.params.id]);
+});
+
+// Récupération d'un commentaire de Google Sheet
+app.get('/api/comments/:giteId/:date', async (req, res) => {
+  const { giteId, date } = req.params;
+  const sheetName = SHEET_NAMES[giteId];
+  if (!sheetName) {
+    return res.status(400).json({ success: false, error: 'Invalid gite' });
+  }
+  try {
+    console.time('sheet-load');
+    const token = await getAccessToken();
+    const valueRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:J`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const valueData = await valueRes.json();
+    const rows = valueData.values || [];
+    const targetDate = dayjs(date, 'YYYY-MM-DD').format('DD/MM/YYYY');
+    let comment = 'pas de commentaires';
+    for (const row of rows) {
+      if (row[0] === targetDate) {
+        comment = row[8] && row[8].trim() ? row[8] : 'pas de commentaires';
+        break;
+      }
+    }
+    console.log(`Recherche commentaire pour ${giteId} le ${targetDate}: ${comment}`);
+    console.timeEnd('sheet-load');
+    res.json({ comment });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Gestion des tarifs
