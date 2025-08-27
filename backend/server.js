@@ -437,7 +437,7 @@ app.get('/api/comments-range', async (req, res) => {
         const rowDate = dayjs(row[0], 'DD/MM/YYYY');
         if (!rowDate.isBefore(startDate) && !rowDate.isAfter(endDate)) {
           const key = `${giteId}_${rowDate.format('YYYY-MM-DD')}`;
-          results[key] = row[8] && row[8].trim() ? row[8] : 'pas de commentaires';
+          results[key] = row[8] && row[8].trim() ? row[8] : '';
         }
       }
     }

@@ -40,6 +40,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       const end = today.add(6, 'day').format('YYYY-MM-DD');
       try {
         const data = await fetchComments(start, end);
+        console.log('Fetched comments:', data);
         setComments(data);
       } catch {
         setComments({});
@@ -176,7 +177,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                         <>
                           {format(ev.date)}
                           <Typography component="span" variant="caption" display="block">
-                            {comment || 'pas de commentaires'}
+                            {comment || ''}
                           </Typography>
                         </>
                       }
