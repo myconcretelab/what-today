@@ -38,8 +38,10 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       const result = {};
       for (const b of bookings) {
         const key = `${b.giteId}_${b.debut}`;
+        const date = dayjs(b.debut).format('YYYY-MM-DD');
         try {
-          const res = await fetch(`/api/comments/${b.giteId}/${b.debut}`);
+          console.log(`Fetching comment for ${b.giteId} on ${date}`);
+          const res = await fetch(`/api/comments/${b.giteId}/${date}`);
           const data = await res.json();
           result[key] = data.comment;
         } catch {
