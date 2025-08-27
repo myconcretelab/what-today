@@ -10,6 +10,7 @@ const TEXTS_URL = `${API_BASE}/api/texts`;
 const DATA_URL = `${API_BASE}/api/data`;
 const HOLIDAYS_URL = `${API_BASE}/api/school-holidays`;
 const PUBLIC_HOLIDAYS_URL = 'https://calendrier.api.gouv.fr/jours-feries/metropole.json';
+const COMMENTS_URL = `${API_BASE}/api/comments-range`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
@@ -37,6 +38,12 @@ export async function updateStatus(id, done, user) {
 
 export async function refreshCalendars() {
   const res = await fetch(REFRESH_URL, { method: 'POST' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function fetchComments(start, end) {
+  const res = await fetch(`${COMMENTS_URL}?start=${start}&end=${end}`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
