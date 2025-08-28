@@ -319,9 +319,11 @@ export function AvailabilityPeriodPanel({ onReserve }) {
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
+      <Typography variant="h6" sx={{ pt: 8 }}>
         Choisir des dates
       </Typography>
+      <Card sx={{ mb: 2, boxShadow: 3 }}>
+        <CardContent>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
         <TextField sx={{ width: 320 }}
           label="Période"
@@ -418,6 +420,9 @@ export function AvailabilityPeriodPanel({ onReserve }) {
           ))}
         </Box>
       )}
+</CardContent>
+      </Card>
+      
     </Box>
   );
 }
