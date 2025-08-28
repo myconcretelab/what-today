@@ -15,8 +15,8 @@ export const COLORS = {
 };
 
 export const TRASH_COLORS = {
-  yellow: 'yellow',
-  darkGreen: '#006400'
+  yellow: '#ffcb05',
+  darkGreen: '#104911'
 };
 
 export const GITES = [
