@@ -14,6 +14,11 @@ export const COLORS = {
   }
 };
 
+export const TRASH_COLORS = {
+  yellow: 'yellow',
+  darkGreen: '#006400'
+};
+
 export const GITES = [
   { id: 'phonsine', name: 'Gîte de Phonsine' },
   { id: 'liberte', name: 'Gîte Le Liberté' },
