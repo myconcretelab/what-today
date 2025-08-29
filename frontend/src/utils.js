@@ -19,6 +19,9 @@ export const TRASH_COLORS = {
   darkGreen: '#104911'
 };
 
+// Unified UI colors
+export const CARD_BG = '#f7f7f7';
+
 export const GITES = [
   { id: 'phonsine', name: 'Gîte de Phonsine' },
   { id: 'liberte', name: 'Gîte Le Liberté' },

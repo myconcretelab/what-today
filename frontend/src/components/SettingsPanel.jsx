@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import { CARD_BG } from '../utils';
 import {
   fetchPrices,
   savePrices,
@@ -129,7 +130,7 @@ export default function SettingsPanel() {
       <Typography variant="h4" sx={{ mb: 2 }}>
         Réglages
       </Typography>
-      <Card sx={{ mb: 2, boxShadow: 3 }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 3 }}>
             Gestion des prix
@@ -180,7 +181,7 @@ export default function SettingsPanel() {
           </Box>
           </CardContent>
       </Card>
-      <Card sx={{ mb: 2, boxShadow: 3 }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", mt: 4, mb: 2 }}>
             <Typography variant="h6"  sx={{ mb: 2 }}>
@@ -228,7 +229,7 @@ export default function SettingsPanel() {
         style={{ display: 'none' }}
         onChange={handleImportData}
       />
-      <Card sx={{ mb: 2, boxShadow: 3 }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
           <Box sx={{ mt: 2 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
@@ -246,4 +247,3 @@ export default function SettingsPanel() {
     </Box>
   );
 }
-

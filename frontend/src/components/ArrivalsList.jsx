@@ -20,7 +20,8 @@ import {
   giteInitial,
   eventColor,
   borderWidth,
-  statusBorderColor
+  statusBorderColor,
+  CARD_BG
 } from '../utils';
 import { fetchComments } from '../services/api';
 
@@ -127,7 +128,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
       {['today', 'tomorrow'].map(key => (
-        <Card key={key} sx={{ mb: 2, boxShadow: 3 }}>
+        <Card key={key} sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
           <CardContent>
             <Typography variant="h6">
               {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
@@ -219,7 +220,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
         </Card>
       ))}
 
-      <Card sx={{ mb: 2, boxShadow: 3 }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
           <Typography variant="h6">Prochains jours</Typography>
           <List>

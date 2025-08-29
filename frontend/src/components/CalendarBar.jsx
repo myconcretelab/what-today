@@ -7,7 +7,8 @@ import {
   giteInitial,
   eventColor,
   borderWidth,
-  borderColor
+  borderColor,
+  CARD_BG
 } from '../utils';
 
 
@@ -60,7 +61,7 @@ function CalendarBar({ bookings, errors }) {
   });
 
   return (
-    <Card sx={{ mb: 3, pb:0, boxShadow: 3 }}>
+    <Card sx={{ mb: 3, pb:0, boxShadow: 'none', bgcolor: CARD_BG }}>
       <CardContent sx={{ p: 1 }}>
         <Box sx={{ display: 'flex', overflowX: 'auto', width: '100%' }}>
           {days.map(({ date, events }, idx) => (

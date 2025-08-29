@@ -30,6 +30,7 @@ import {
   fetchPrices,
   fetchTexts
 } from '../services/api';
+import { CARD_BG } from '../utils';
 
 // Enable plugin
 dayjs.extend(isSameOrAfter);
@@ -322,7 +323,7 @@ export function AvailabilityPeriodPanel({ onReserve }) {
       <Typography variant="h6" sx={{ pt: 8 }}>
         Choisir des dates
       </Typography>
-      <Card sx={{ mb: 2, boxShadow: 3 }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
         <TextField sx={{ width: 320 }}
@@ -350,7 +351,7 @@ export function AvailabilityPeriodPanel({ onReserve }) {
       {availability.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {availability.map(g => (
-            <Card key={g.id} sx={{ p: 1 }}>
+            <Card key={g.id} sx={{ p: 1, boxShadow: 'none', bgcolor: CARD_BG }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography sx={{ color: g.free ? '#64b5f6' : '#f48fb1' }}>{g.name}</Typography>
                 {g.free ? (
@@ -472,7 +473,7 @@ export function AvailabilityReservationPanel({ onBack }) {
         </Typography>
       )}
       
-<Card sx={{ mb: 2, boxShadow: 3 }}>
+<Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
           <CardContent>
 
       <Typography variant="h6" sx={{ mb: 1 }}>
@@ -546,9 +547,9 @@ export function AvailabilityReservationPanel({ onBack }) {
           Calendrier Airbnb
         </Button>
       </Box>
-      </CardContent>
+</CardContent>
       </Card>
-<Card sx={{ mb: 2, boxShadow: 3 }}>
+<Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
           <CardContent>
       <Typography variant="h6" sx={{ mb: 1 }}>
         SMS
