@@ -42,7 +42,9 @@ function Legend({ bookings, selectedUser, onUserChange }) {
         </Box>
 
         {/* Sources */}
+        
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "center", justifyContent: "center" }}>
+          {/*
           <Box
             sx={{
               display: 'flex',
@@ -65,10 +67,12 @@ function Legend({ bookings, selectedUser, onUserChange }) {
               </Box>
             ))}
           </Box>
+           */}
         </Box>
+       
 
         {/* Poubelles */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "center", justifyContent: "center"  }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "flex-end", justifyContent: "center"  }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Chip icon={<DeleteOutlineIcon />} label="Néant" variant="filled" sx={{ backgroundColor: neantColor, color: darken(neantColor, 0.5),"& .MuiChip-icon": {color: "inherit" } }} />
           </Box>
