@@ -7,10 +7,10 @@ export const COLORS = {
     default: '#9E9E9E'
   },
   events: {
-    arrival: '#faf3dd',
-    depart: '#b8f2e6',
-    both: '#ffa69e',
-    done: '#aed9e0'
+    arrival: '#f7e1d7',
+    depart: '#dedbd2',
+    both: '#edafb8',
+    done: '#4a5759'
   }
 };
 
@@ -20,13 +20,22 @@ export const TRASH_COLORS = {
 };
 
 // Unified UI colors
-export const CARD_BG = '#f7f7f7';
+export const CARD_BG = '#f5ebe0';
 
 export const GITES = [
   { id: 'phonsine', name: 'Gîte de Phonsine' },
   { id: 'liberte', name: 'Gîte Le Liberté' },
   { id: 'gree', name: 'Gîte de la Grée' },
   { id: 'edmond', name: "Gîte de l'oncle Edmond" }
+];
+
+// Background colors for the 4 main panels (0..3)
+// Keep them soft to preserve readability behind cards
+export const PANEL_COLORS = [
+  '#b0c4b1', // Panel 0
+  '#4a5759', // Panel 1
+  '#ffa69e', // Panel 2
+  '#aed9e0'  // Panel 3
 ];
 
 export function sourceColor(type) {

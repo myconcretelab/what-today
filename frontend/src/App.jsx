@@ -22,6 +22,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EditIcon from '@mui/icons-material/Edit';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { PANEL_COLORS } from './utils';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
@@ -91,9 +92,19 @@ function App() {
   if (!auth) return <Login onLogin={handleLogin} />;
   if (loading) return <Loader />;
 
+  const panelBg = PANEL_COLORS[panel] || PANEL_COLORS[0];
+
   return (
     <AvailabilityProvider bookings={data.reservations}>
-      <Box sx={{ width: '100%', overflow: 'hidden', height: '100vh' }}>
+      <Box
+        sx={{
+          width: '100%',
+          overflow: 'hidden',
+          height: '100vh',
+          bgcolor: panelBg,
+          transition: 'background-color 0.3s ease'
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
