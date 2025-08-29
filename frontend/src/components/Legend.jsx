@@ -70,12 +70,10 @@ function Legend({ bookings, selectedUser, onUserChange }) {
         {/* Poubelles */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "center", justifyContent: "center"  }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <DeleteOutlineIcon fontSize="small" sx={{ color: neantColor }} />
-            <Chip label="Néant" variant="filled" sx={{ backgroundColor: neantColor, color: darken(neantColor, 0.5) }} />
+            <Chip icon={<DeleteOutlineIcon />} label="Néant" variant="filled" sx={{ backgroundColor: neantColor, color: darken(neantColor, 0.5),"& .MuiChip-icon": {color: "inherit" } }} />
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <DeleteOutlineIcon fontSize="small" sx={{ color: mauronColor }} />
-            <Chip label="Mauron" variant="filled" sx={{ backgroundColor: mauronColor, color: lighten(mauronColor, 0.5)  }} />
+            <Chip icon={<DeleteOutlineIcon />} label="Mauron" variant="filled" sx={{ backgroundColor: mauronColor, color: lighten(mauronColor, 0.5), "& .MuiChip-icon": {color: "inherit" }  }} />
           </Box>
         </Box>
       </Box>
