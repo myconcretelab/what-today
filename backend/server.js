@@ -25,7 +25,8 @@ dayjs.locale('fr');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Increase JSON body limit to allow large HAR uploads
+app.use(express.json({ limit: '50mb' }));
 
 const spreadsheetId = process.env.SPREAD_SHEET_ID;
 const SHEET_NAMES = {
@@ -509,6 +510,19 @@ app.get('/api/data', (req, res) => {
 app.post('/api/data', (req, res) => {
   writeData(req.body || { prices: [], texts: [] });
   res.json({ success: true });
+});
+
+// Upload a HAR file and save it into the backend folder
+app.post('/api/upload-har', (req, res) => {
+  try {
+    const dest = path.join(__dirname, 'www.airbnb.fr.har');
+    // req.body contains the parsed JSON of the HAR
+    fs.writeFileSync(dest, JSON.stringify(req.body || {}, null, 2), 'utf-8');
+    res.json({ success: true, path: dest });
+  } catch (err) {
+    console.error('Failed to save HAR:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 app.post('/api/save-reservation', async (req, res) => {

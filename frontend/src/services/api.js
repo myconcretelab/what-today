@@ -11,6 +11,7 @@ const DATA_URL = `${API_BASE}/api/data`;
 const HOLIDAYS_URL = `${API_BASE}/api/school-holidays`;
 const PUBLIC_HOLIDAYS_URL = 'https://calendrier.api.gouv.fr/jours-feries/metropole.json';
 const COMMENTS_URL = `${API_BASE}/api/comments-range`;
+const UPLOAD_HAR_URL = `${API_BASE}/api/upload-har`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
@@ -103,6 +104,16 @@ export async function saveData(data) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function uploadHar(harJson) {
+  const res = await fetch(UPLOAD_HAR_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(harJson)
   });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();

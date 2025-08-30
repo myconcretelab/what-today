@@ -23,7 +23,8 @@ import {
   fetchTexts,
   saveTexts,
   fetchData,
-  saveData
+  saveData,
+  uploadHar
 } from '../services/api';
 
 const GITE_OPTIONS = ['phonsine', 'gree', 'edmond', 'liberte'];
@@ -32,6 +33,7 @@ export default function SettingsPanel() {
   const [prices, setPrices] = useState([]);
   const [texts, setTexts] = useState([]);
   const fileInputRef = useRef(null);
+  const harInputRef = useRef(null);
 
   useEffect(() => {
     fetchPrices()
@@ -122,6 +124,25 @@ export default function SettingsPanel() {
       setTexts(data.texts || []);
     } catch (err) {
       // ignore
+    }
+  };
+
+  const handleHarClick = () => {
+    harInputRef.current?.click();
+  };
+
+  const handleImportHar = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      await uploadHar(json);
+    } catch (err) {
+      // ignore
+    } finally {
+      // reset input so selecting the same file again triggers change
+      e.target.value = '';
     }
   };
 
@@ -240,6 +261,28 @@ export default function SettingsPanel() {
             </Button>
             <Button variant="contained" onClick={handleExportData}>
               Exporter
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+      <input
+        type="file"
+        accept=".har,application/json"
+        ref={harInputRef}
+        style={{ display: 'none' }}
+        onChange={handleImportHar}
+      />
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+        <CardContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Import du fichier HAR Airbnb
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Le fichier sera enregistré sous "www.airbnb.fr.har" dans le dossier backend.
+            </Typography>
+            <Button variant="contained" onClick={handleHarClick}>
+              Importer un fichier .har
             </Button>
           </Box>
         </CardContent>
