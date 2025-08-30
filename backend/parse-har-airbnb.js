@@ -13,8 +13,9 @@ Sortie unique: reservations_by_listing.json
     { type, checkIn, checkOut, nights, name, payout, comment }
 */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // ---- mapping des gîtes (ids -> nom)
 const ALLOWED_LISTINGS = new Map([
@@ -287,17 +288,8 @@ function fusePersonalNotes(rawRecords) {
   return results;
 }
 
-// ---------- main ----------
-function main() {
-  const [,, inHar, outDirArg] = process.argv;
-  if (!inHar) {
-    console.error("Usage: node parse-har-airbnb.js <input.har> [outputDir]");
-    process.exit(1);
-  }
-  const outDir = path.resolve(outDirArg || process.cwd());
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-  const har = JSON.parse(fs.readFileSync(inHar, "utf-8"));
+// ---------- API: retourne l'objet JSON regroupé ----------
+export function parseHarReservationsByListing(har) {
   const entries = har?.log?.entries || [];
 
   const collected = [];
@@ -305,18 +297,13 @@ function main() {
     collected.push(...extractBlocksFromEntry(entry));
   }
 
-  // séparer & fusionner
   const airbnbRaw = collected.filter((r) => r.kind === "calendar" || r.kind === "additional");
   const personalRaw = collected.filter((r) => r.kind === "note");
 
   const airbnb = fuseAirbnbByConfirmation(airbnbRaw);
   const personal = fusePersonalNotes(personalRaw);
 
-  // combine puis regroupe par nom de gîte
   const all = [...airbnb, ...personal];
-  // logs des volumes par type
-  console.log(`📊 Réservations Airbnb: ${airbnb.length}`);
-  console.log(`📘 Réservations perso: ${personal.length}`);
   const byListingName = {};
   const fullName = (first, last) => {
     const clean = (s) => (typeof s === "string" ? s.trim() : s);
@@ -330,10 +317,9 @@ function main() {
   for (const r of all) {
     const key = r.listingName;
     if (!key || !ALLOWED_LISTINGS.has([...ALLOWED_LISTINGS.entries()].find(([,name]) => name === key)?.[0] || "")) {
-      continue; // ignorer tout ce qui ne correspond pas aux 4 gîtes
+      continue;
     }
     if (!byListingName[key]) byListingName[key] = [];
-    // supprimer les champs non demandés (ils n'existent déjà plus)
     byListingName[key].push({
       type: r.type,
       checkIn: r.checkIn,
@@ -345,12 +331,10 @@ function main() {
     });
   }
 
-  // tri par date dans chaque gîte
   for (const k of Object.keys(byListingName)) {
     byListingName[k].sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
   }
 
-  // retire la première ET la dernière entrée de chaque gîte (après tri)
   for (const k of Object.keys(byListingName)) {
     const arr = byListingName[k];
     if (!Array.isArray(arr)) continue;
@@ -358,12 +342,27 @@ function main() {
     else byListingName[k] = [];
   }
 
-  const outFile = path.join(outDir, "reservations_by_listing.json");
-  fs.writeFileSync(outFile, JSON.stringify(byListingName, null, 2), "utf-8");
+  return byListingName;
+}
 
+// ---------- main (CLI) ----------
+function main() {
+  const [, , inHar, outDirArg] = process.argv;
+  if (!inHar) {
+    console.error("Usage: node parse-har-airbnb.js <input.har> [outputDir]");
+    process.exit(1);
+  }
+  const outDir = path.resolve(outDirArg || process.cwd());
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+  const har = JSON.parse(fs.readFileSync(inHar, "utf-8"));
+  const result = parseHarReservationsByListing(har);
+  const outFile = path.join(outDir, "reservations_by_listing.json");
+  fs.writeFileSync(outFile, JSON.stringify(result, null, 2), "utf-8");
   console.log(`✅ Écrit → ${outFile}`);
 }
 
-if (require.main === module) {
+const thisFile = fileURLToPath(import.meta.url);
+if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
   main();
 }

@@ -10,6 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { parseHarReservationsByListing } from './parse-har-airbnb.js';
 
 
 // Pour avoir __dirname en ES modules
@@ -521,6 +522,22 @@ app.post('/api/upload-har', (req, res) => {
     res.json({ success: true, path: dest });
   } catch (err) {
     console.error('Failed to save HAR:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Exposer le JSON parsé depuis le fichier HAR uploadé
+app.get('/api/har-calendar', (req, res) => {
+  try {
+    const harPath = path.join(__dirname, 'www.airbnb.fr.har');
+    if (!fs.existsSync(harPath)) {
+      return res.status(404).json({ success: false, error: 'HAR not found' });
+    }
+    const har = JSON.parse(fs.readFileSync(harPath, 'utf-8'));
+    const data = parseHarReservationsByListing(har);
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to parse HAR:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
