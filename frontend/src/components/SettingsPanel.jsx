@@ -12,7 +12,8 @@ import {
   Card,
   CardContent,
   Chip,
-  MenuItem
+  MenuItem,
+  CircularProgress
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -34,6 +35,9 @@ export default function SettingsPanel() {
   const [texts, setTexts] = useState([]);
   const fileInputRef = useRef(null);
   const harInputRef = useRef(null);
+  const [isHarUploading, setIsHarUploading] = useState(false);
+  const [harUploadOk, setHarUploadOk] = useState(null); // null | true | false
+  const [harUploadMsg, setHarUploadMsg] = useState('');
 
   useEffect(() => {
     fetchPrices()
@@ -135,12 +139,24 @@ export default function SettingsPanel() {
     const file = e.target.files[0];
     if (!file) return;
     try {
+      setHarUploadOk(null);
+      setHarUploadMsg('');
+      setIsHarUploading(true);
       const text = await file.text();
       const json = JSON.parse(text);
-      await uploadHar(json);
+      const result = await uploadHar(json);
+      if (result && result.success) {
+        setHarUploadOk(true);
+        setHarUploadMsg('Fichier HAR enregistré sur le serveur.');
+      } else {
+        setHarUploadOk(false);
+        setHarUploadMsg('Le serveur a répondu sans succès.');
+      }
     } catch (err) {
-      // ignore
+      setHarUploadOk(false);
+      setHarUploadMsg('Échec de l\'envoi du fichier HAR.');
     } finally {
+      setIsHarUploading(false);
       // reset input so selecting the same file again triggers change
       e.target.value = '';
     }
@@ -281,9 +297,30 @@ export default function SettingsPanel() {
             <Typography variant="body2" sx={{ mb: 1 }}>
               Le fichier sera enregistré sous "www.airbnb.fr.har" dans le dossier backend.
             </Typography>
-            <Button variant="contained" onClick={handleHarClick}>
-              Importer un fichier .har
+            <Button
+              variant="contained"
+              onClick={handleHarClick}
+              disabled={isHarUploading}
+              startIcon={isHarUploading ? undefined : null}
+            >
+              {isHarUploading ? (
+                <>
+                  <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+                  Import en cours…
+                </>
+              ) : (
+                'Importer un fichier .har'
+              )}
             </Button>
+            {/* Feedback message */}
+            {harUploadOk != null && (
+              <Typography
+                variant="body2"
+                sx={{ mt: 1, color: harUploadOk ? 'success.main' : 'error.main' }}
+              >
+                {harUploadMsg}
+              </Typography>
+            )}
           </Box>
         </CardContent>
       </Card>
