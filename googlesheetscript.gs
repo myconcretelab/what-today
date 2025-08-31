@@ -3,7 +3,6 @@
 const HAR_JSON_URL = 'https://today.gites-broceliande.com/api/har-calendar';
 
 const YELLOW = '#fff9c4'; // jaune très léger (MD Yellow 100)
-const RUN_NOTE_PREFIX = 'INSERTED_BY_SCRIPT_RUN:'; // Marqueur de lignes insérées (legacy notes)
 const RUN_COL_INDEX = 12; // Colonne L pour marquer les lignes insérées
 
 // ================== Utils dates & colonnes ==================
@@ -202,18 +201,11 @@ function majReservationsJSON() {
       // Fond jaune sur toute la ligne colonnes A→J (1 à 10)
       sheet.getRange(lastRow, 1, 1, 10).setBackground(YELLOW);
 
-      // Marquer la ligne avec l'ID de run en colonne L (préféré)
+      // Marquer la ligne avec l'ID de run en colonne L (seul marqueur)
       try {
         sheet.getRange(lastRow, RUN_COL_INDEX).setValue(runId);
       } catch (err) {
         Logger.log('⚠️ Impossible d\'écrire le marqueur de run en colonne L (ligne ' + lastRow + ') : ' + err);
-      }
-      // Et, en secours, noter aussi l'ID via une note (compatibilité legacy)
-      try {
-        const noteText = RUN_NOTE_PREFIX + runId;
-        sheet.getRange(lastRow, 1, 1, header.length).setNote(noteText);
-      } catch (err) {
-        Logger.log('ℹ️ Note de run non écrite (ok) ligne ' + lastRow + ' : ' + err);
       }
 
       // D/E/F: appliquer les formules et valeurs demandées pour la nouvelle ligne
@@ -222,7 +214,7 @@ function majReservationsJSON() {
       // F (6): valeur fixe selon le gîte    → Gree/Phonsine/Edmond: 2, Liberté: 10
       try {
         // Formules en A1 (locale FR attendue dans le fichier)
-        sheet.getRange(lastRow, 4).setFormula('=TEXTE(B' + lastRow + ';"mm (mmmm)")');
+        sheet.getRange(lastRow, 4).setFormula('=TEXTE(B' + lastRow + ' ;"mm (mmmm)")');
         sheet.getRange(lastRow, 5).setFormula('=C' + lastRow + '-B' + lastRow);
 
         // Valeur fixe en F selon le nom de la feuille
@@ -381,7 +373,6 @@ function supprimerDernieresInsertions() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const props = PropertiesService.getDocumentProperties();
   let runId = props.getProperty('lastRunId');
-  let targetNote = runId ? (RUN_NOTE_PREFIX + runId) : null;
   let totalDeleted = 0;
 
   // Si aucun runId en propriétés, essayer de déduire le plus récent en scannant la colonne L
@@ -399,7 +390,6 @@ function supprimerDernieresInsertions() {
     });
     if (newest) {
       runId = newest;
-      targetNote = RUN_NOTE_PREFIX + runId;
     }
   }
 
@@ -413,20 +403,14 @@ function supprimerDernieresInsertions() {
     const lastCol = sheet.getLastColumn();
     if (lastRow <= 1 || lastCol <= 0) return;
 
-    const dataRange = sheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, RUN_COL_INDEX));
-    const notes = dataRange.getNotes();
     const runMarks = sheet.getRange(2, RUN_COL_INDEX, lastRow - 1, 1).getValues();
 
     // Collecter les index de lignes à supprimer (relatifs à la feuille)
     const toDelete = [];
-    for (let r = 0; r < notes.length; r++) {
-      const rowNotes = notes[r];
+    for (let r = 0; r < runMarks.length; r++) {
       const mark = String((runMarks[r] && runMarks[r][0]) || '').trim();
-      const noteMatch = rowNotes && rowNotes.some(n => n === targetNote);
       const colMatch = (mark === runId);
-      if (noteMatch || colMatch) {
-        toDelete.push(r + 2); // Ligne réelle = r + 2
-      }
+      if (colMatch) toDelete.push(r + 2); // Ligne réelle = r + 2
     }
 
     // Supprimer de bas en haut pour ne pas décaler les indices
