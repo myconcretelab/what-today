@@ -169,13 +169,54 @@ function majReservationsJSON() {
       const lastRow = sheet.getLastRow();
 
       // Exigences spécifiques: colonne I (9) = type → "Airbnb" ou "A définir"
-      //                        colonne G (7) = payout
+      //                        colonne H (8) = payout
       //                        colonne J (10) = comment
       const paiementText = (r.type === 'airbnb') ? 'Airbnb' : 'A définir';
       sheet.getRange(lastRow, 9).setValue(paiementText); // Colonne I
-      if (r.payout != null) sheet.getRange(lastRow, 7).setValue(r.payout); // Colonne G
+      if (r.payout != null) sheet.getRange(lastRow, 8).setValue(r.payout); // Colonne H
       if (r.comment) sheet.getRange(lastRow, 10).setValue(r.comment); // Colonne J
       if (iNom === -1 && r.name) sheet.getRange(lastRow, 1).setValue(r.name); // Sécurité si pas d'entête "Nom"
+
+      // Recopie automatique des formules pour D, E et F depuis la première ligne au-dessus contenant une formule
+      try {
+        autoFillFormulasForRow(sheet, lastRow, [4, 5, 6]); // D, E, F
+      } catch (e) {
+        Logger.log('⚠️ Auto-fill D/E/F error on row ' + lastRow + ': ' + e);
+      }
+
+      // Si réservation Airbnb: s'assurer que E = nombre de nuits, puis G = H / E
+      if (r.type === 'airbnb') {
+        try {
+          // S'assurer que les formules (E notamment) ont calculé avant lecture
+          SpreadsheetApp.flush();
+
+          const eRange = sheet.getRange(lastRow, 5); // Colonne E
+          let eVal = eRange.getValue();
+
+          // Si E est vide/non numérique et que r.nights est fourni, on l'écrit
+          const nightsNum = (r.nights != null && r.nights !== '') ? Number(r.nights) : null;
+          const eNum = (eVal === '' || eVal === null) ? NaN : Number(eVal);
+          if ((!isFinite(eNum) || eNum <= 0) && nightsNum != null && isFinite(nightsNum) && nightsNum > 0) {
+            eRange.setValue(nightsNum);
+            eVal = nightsNum;
+          }
+
+          // Calcul du tarif/nuit: G = H / E (sécurisé)
+          const hValRaw = sheet.getRange(lastRow, 8).getValue(); // Colonne H
+          const eValNum = Number(eVal);
+          const hValNum = (hValRaw === '' || hValRaw === null) ? NaN : Number(hValRaw);
+
+          if (isFinite(eValNum) && eValNum > 0 && isFinite(hValNum)) {
+            const perNight = hValNum / eValNum;
+            sheet.getRange(lastRow, 7).setValue(perNight); // Colonne G
+          } else {
+            // Évite des valeurs NULL/NaN dans G
+            sheet.getRange(lastRow, 7).setValue('');
+          }
+        } catch (err) {
+          Logger.log('⚠️ Airbnb post-fill error on row ' + lastRow + ': ' + err);
+        }
+      }
 
       // Fond jaune sur Début + Fin
       sheet.getRange(lastRow, iDebut+1, 1, 1).setBackground(YELLOW);
@@ -201,6 +242,30 @@ function majReservationsJSON() {
   }
 
   Logger.log("=== FIN SYNCHRO JSON (HAR) ===");
+}
+
+// Copie pour la ligne cible les formules de colonnes données (ex: D,E,F)
+// en cherchant vers le haut la première ligne qui contient une formule dans chaque colonne.
+// Utilise R1C1 pour adapter correctement les références relatives à la nouvelle ligne.
+function autoFillFormulasForRow(sheet, targetRow, columns) {
+  if (!sheet || !targetRow || !Array.isArray(columns) || columns.length === 0) return;
+  const firstDataRow = 2;
+  const searchStart = targetRow - 1;
+  if (searchStart < firstDataRow) return;
+
+  columns.forEach(function(col) {
+    let srcRow = null;
+    for (let r = searchStart; r >= firstDataRow; r--) {
+      const f = sheet.getRange(r, col).getFormula();
+      if (f) { srcRow = r; break; }
+    }
+    if (srcRow) {
+      const fR1C1 = sheet.getRange(srcRow, col).getFormulaR1C1();
+      if (fR1C1) {
+        sheet.getRange(targetRow, col).setFormulaR1C1(fR1C1);
+      }
+    }
+  });
 }
 
 // Supprime toutes les lignes totalement vides (pour éviter d'accumuler des séparateurs)
