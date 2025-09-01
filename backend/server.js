@@ -430,7 +430,8 @@ app.get('/api/comments-range', async (req, res) => {
     const results = {};
     for (const [giteId, sheetName] of Object.entries(SHEET_NAMES)) {
       const valueRes = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:J`,
+        // Include column K to get phone numbers
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:K`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const valueData = await valueRes.json();
@@ -439,7 +440,9 @@ app.get('/api/comments-range', async (req, res) => {
         const rowDate = dayjs(row[0], 'DD/MM/YYYY');
         if (!rowDate.isBefore(startDate) && !rowDate.isAfter(endDate)) {
           const key = `${giteId}_${rowDate.format('YYYY-MM-DD')}`;
-          results[key] = row[8] && row[8].trim() ? row[8] : '';
+          const comment = row[8] && row[8].trim() ? row[8] : '';
+          const phone = row[9] && row[9].trim() ? row[9] : '';
+          results[key] = { comment, phone };
         }
       }
     }

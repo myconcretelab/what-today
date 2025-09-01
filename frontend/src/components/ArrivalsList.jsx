@@ -10,9 +10,10 @@ import {
   Card,
   CardContent,
   Switch,
-  Chip
+  Chip,
+  IconButton
 } from '@mui/material';
-import { Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
+import { Login as LoginIcon, Logout as LogoutIcon, Phone as PhoneIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
 import {
@@ -51,6 +52,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       load();
     }
   }, [bookings]);
+
+  const telHref = phone => `tel:${(phone || '').replace(/[^0-9+]/g, '')}`;
 
   const initialEvents = bookings.flatMap(ev => {
     const debut = dayjs(ev.debut);
@@ -147,7 +150,9 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
 
               const bw = borderWidth(ev.type);
               const commentKey = `${ev.giteId}_${ev.debut}`;
-              const comment = comments[commentKey];
+              const entry = comments[commentKey];
+              const comment = typeof entry === 'string' ? entry : (entry?.comment || '');
+              const phone = typeof entry === 'object' && entry ? entry.phone : '';
               return (
                 <ListItem
                   key={ev.id}
@@ -194,6 +199,17 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                           <LoginIcon fontSize="small" />
                         </>
                       )}
+                      {phone && (
+                        <IconButton
+                          component="a"
+                          href={telHref(phone)}
+                          size="small"
+                          sx={{ color: textColor }}
+                          aria-label="Appeler"
+                        >
+                          <PhoneIcon fontSize="small" />
+                        </IconButton>
+                      )}
                       <Switch
                         size="small"
                         checked={Boolean(status)}
@@ -236,7 +252,9 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 : theme.palette.getContrastText(itemBg);
               const bw = borderWidth(ev.type);
               const commentKey = `${ev.giteId}_${ev.debut}`;
-              const comment = comments[commentKey];
+              const entry = comments[commentKey];
+              const comment = typeof entry === 'string' ? entry : (entry?.comment || '');
+              const phone = typeof entry === 'object' && entry ? entry.phone : '';
               return (
                 <ListItem
                   key={ev.id}
@@ -278,6 +296,17 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                         <LogoutIcon fontSize="small" />
                         <LoginIcon fontSize="small" />
                       </>
+                    )}
+                    {phone && (
+                      <IconButton
+                        component="a"
+                        href={telHref(phone)}
+                        size="small"
+                        sx={{ color: textColor }}
+                        aria-label="Appeler"
+                      >
+                        <PhoneIcon fontSize="small" />
+                      </IconButton>
                     )}
                     <Switch
                       size="small"
