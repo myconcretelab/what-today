@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTheme } from '@mui/material/styles';
 import {
   Box,
   Typography,
@@ -15,6 +16,7 @@ import {
   MenuItem,
   CircularProgress
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { CARD_BG } from '../utils';
@@ -30,7 +32,9 @@ import {
 
 const GITE_OPTIONS = ['phonsine', 'gree', 'edmond', 'liberte'];
 
-export default function SettingsPanel() {
+export default function SettingsPanel({ panelBg, onBack }) {
+  const theme = useTheme();
+  const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
   const [prices, setPrices] = useState([]);
   const [texts, setTexts] = useState([]);
   const fileInputRef = useRef(null);
@@ -164,9 +168,12 @@ export default function SettingsPanel() {
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Réglages
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <IconButton onClick={onBack} size="large" sx={{ color: headerColor }}>
+          <ArrowBackIcon fontSize="large" />
+        </IconButton>
+        <Typography variant="h6" sx={{ color: headerColor }}>Réglages</Typography>
+      </Box>
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 3 }}>

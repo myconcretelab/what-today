@@ -157,7 +157,7 @@ function App() {
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <AvailabilityPeriodPanel onReserve={() => setPanel(2)} />
+              <AvailabilityPeriodPanel panelBg={panelBg} onReserve={() => setPanel(2)} onBack={() => setPanel(0)} />
             </Box>
           </PullToRefresh>
           <PullToRefresh
@@ -165,7 +165,7 @@ function App() {
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <AvailabilityReservationPanel onBack={() => setPanel(1)} />
+              <AvailabilityReservationPanel panelBg={panelBg} onBack={() => setPanel(1)} />
             </Box>
           </PullToRefresh>
           <PullToRefresh
@@ -173,7 +173,7 @@ function App() {
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <SettingsPanel />
+              <SettingsPanel panelBg={panelBg} onBack={() => setPanel(2)} />
             </Box>
           </PullToRefresh>
         </Box>
