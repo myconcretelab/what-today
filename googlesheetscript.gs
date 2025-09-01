@@ -209,12 +209,13 @@ function majReservationsJSON() {
       }
 
       // D/E/F: appliquer les formules et valeurs demandées pour la nouvelle ligne
-      // D (4): =TEXTE(B{row};"mm (mmmm)")  → mois du début
+      // D (4): =B{row} puis appliquer le format "mm (mmmm)" → mois du début
       // E (5): =C{row}-B{row}               → nombre de nuits
       // F (6): valeur fixe selon le gîte    → Gree/Phonsine/Edmond: 2, Liberté: 10
       try {
-        // Formules en A1 (locale FR attendue dans le fichier)
-        sheet.getRange(lastRow, 4).setFormula('=TEXTE(B' + lastRow + ' ;"mm (mmmm)")');
+        // Formules en A1
+        // D: simple référence à B pour éviter TEXT() qui pose problème selon la locale
+        sheet.getRange(lastRow, 4).setFormula('=B' + lastRow);
         sheet.getRange(lastRow, 5).setFormula('=C' + lastRow + '-B' + lastRow);
 
         // Valeur fixe en F selon le nom de la feuille
@@ -232,12 +233,12 @@ function majReservationsJSON() {
         }
         if (fVal !== '') sheet.getRange(lastRow, 6).setValue(fVal);
 
-        // S'assurer que D/E/F respectent le format de la ligne 2 (nombre/affichage)
+        // S'assurer que D/E/F ont le bon format d'affichage.
+        // D doit afficher le mois du début → format personnalisé "mm (mmmm)".
         // La mise en forme peut échouer si la colonne est une "colonne saisie" (data source, etc.).
         // On isole chaque opération pour éviter d'interrompre l'exécution complète.
         try {
-          var dFmt = sheet.getRange(2, 4).getNumberFormat();
-          if (dFmt) sheet.getRange(lastRow, 4).setNumberFormat(dFmt);
+          sheet.getRange(lastRow, 4).setNumberFormat('mm (mmmm)');
         } catch (fmtErr) {
           Logger.log('ℹ️ Format nombre D ignoré (ligne ' + lastRow + ') : ' + fmtErr);
         }
