@@ -14,6 +14,7 @@ import {
   CircularProgress,
   MenuItem,
   IconButton,
+  Avatar,
   Switch
 } from '@mui/material';
 import { DateRange } from 'react-date-range';
@@ -24,6 +25,8 @@ import 'dayjs/locale/fr';
 import useAvailability from '../hooks/useAvailability';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PhoneIcon from '@mui/icons-material/Phone';
+import SmsIcon from '@mui/icons-material/Sms';
 import {
   SAVE_RESERVATION,
   fetchSchoolHolidays,
@@ -584,6 +587,39 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
           />
         ))}
       </Box>
+      {/** Phone and SMS buttons below the switches */}
+      {(() => {
+        const digits = (phone || '').replace(/\D/g, '');
+        const greeting = 'Bonjour,';
+        const bodyPrefix = reservationText && reservationText.trim() ? reservationText : greeting;
+        const smsBody = bodyPrefix.startsWith(greeting) ? bodyPrefix : `${greeting}\n${bodyPrefix}`;
+        const smsHref = `sms:${digits}?&body=${encodeURIComponent(smsBody)}`;
+        const telHref = `tel:${digits}`;
+        return (
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+            <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
+              <IconButton
+                component="a"
+                href={telHref}
+                aria-label="Call"
+                sx={{ color: '#fff' }}
+              >
+                <PhoneIcon />
+              </IconButton>
+            </Avatar>
+            <Avatar sx={{ bgcolor: 'secondary.main', width: 48, height: 48 }}>
+              <IconButton
+                component="a"
+                href={smsHref}
+                aria-label="Send SMS"
+                sx={{ color: '#fff' }}
+              >
+                <SmsIcon />
+              </IconButton>
+            </Avatar>
+          </Box>
+        );
+      })()}
       <Box sx={{ border: '1px solid', borderColor: 'grey.400', borderRadius: 1, p: 2, mb: 1 }}>
         <Typography sx={{ whiteSpace: 'pre-line' }}>{reservationText}</Typography>
       </Box>
