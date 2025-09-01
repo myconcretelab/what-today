@@ -1,5 +1,8 @@
 import React from 'react';
 import { Box, Typography, Tooltip, Avatar, Card, CardContent, useMediaQuery } from '@mui/material';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import SwapVert from '@mui/icons-material/ImportExport';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
 import {
@@ -90,7 +93,11 @@ function CalendarBar({ bookings, errors }) {
                 {events.slice(0, 3).map((ev, idx) => {
                   const color = sourceColor(ev.source);
                   const initial = giteInitial(ev.giteId);
-                  const arrow = ev.type === 'arrival' ? '⬆' : ev.type === 'depart' ? '⬇' : '⬍';
+                  const ArrowIcon = ev.type === 'arrival'
+                    ? ArrowUpwardIcon
+                    : ev.type === 'depart'
+                      ? ArrowDownwardIcon
+                      : SwapVert;
                   return (
                     <Tooltip
                       key={idx}
@@ -112,9 +119,9 @@ function CalendarBar({ bookings, errors }) {
                           <Typography sx={{ fontSize: 12, fontWeight: 700, height: 14 }}>
                             {initial}
                           </Typography>
-                          <Typography sx={{ fontSize: 12, fontWeight: 600, mt: '2px' }}>
-                            {arrow}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: '2px', height: 14 }}>
+                            <ArrowIcon sx={{ fontSize: 16, lineHeight: 1 }} />
+                          </Box>
                         </Box>
                       </Avatar>
                     </Tooltip>
