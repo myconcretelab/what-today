@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useTheme } from '@mui/material/styles';
 import {
   Box,
   Card,
@@ -303,7 +304,7 @@ export function AvailabilityProvider({ bookings, children }) {
   );
 }
 
-export function AvailabilityPeriodPanel({ onReserve }) {
+export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
   const {
     arrival,
     departure,
@@ -317,12 +318,17 @@ export function AvailabilityPeriodPanel({ onReserve }) {
   } = useContext(AvailabilityContext);
 
   const nightCount = departure.diff(arrival, 'day');
+  const theme = useTheme();
+  const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
-      <Typography variant="h6" sx={{ pt: 8 }}>
-        Choisir des dates
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <IconButton onClick={onBack} size="large" sx={{ color: headerColor }}>
+          <ArrowBackIcon fontSize="large" />
+        </IconButton>
+        <Typography variant="h6" sx={{ color: headerColor }}>Choisir des dates</Typography>
+      </Box>
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
@@ -428,7 +434,7 @@ export function AvailabilityPeriodPanel({ onReserve }) {
   );
 }
 
-export function AvailabilityReservationPanel({ onBack }) {
+export function AvailabilityReservationPanel({ onBack, panelBg }) {
   const {
     arrival,
     departure,
@@ -455,13 +461,16 @@ export function AvailabilityReservationPanel({ onBack }) {
     nightCount
   } = useContext(AvailabilityContext);
 
+  const theme = useTheme();
+  const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
+
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <IconButton onClick={onBack} size="large">
+        <IconButton onClick={onBack} size="large" sx={{ color: headerColor }}>
           <ArrowBackIcon fontSize="large" />
         </IconButton>
-        <Typography variant="h6">Réservation</Typography>
+        <Typography variant="h6" sx={{ color: headerColor }}>Réservation</Typography>
       </Box>
       {selectedGite && (
         <Typography
