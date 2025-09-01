@@ -586,40 +586,30 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
             label={t.title}
           />
         ))}
+        {/** Phone and SMS buttons directly under the switches */}
+        {(() => {
+          const digits = (phone || '').replace(/\D/g, '');
+          const greeting = 'Bonjour,';
+          const bodyPrefix = reservationText && reservationText.trim() ? reservationText : greeting;
+          const smsBody = bodyPrefix.startsWith(greeting) ? bodyPrefix : `${greeting}\n${bodyPrefix}`;
+          const smsHref = `sms:${digits}?&body=${encodeURIComponent(smsBody)}`;
+          const telHref = `tel:${digits}`;
+          return (
+            <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center' }}>
+              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 48, height: 48 }}>
+                <IconButton component="a" href={telHref} aria-label="Call" sx={{ color: 'inherit' }}>
+                  <PhoneIcon />
+                </IconButton>
+              </Avatar>
+              <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', width: 48, height: 48 }}>
+                <IconButton component="a" href={smsHref} aria-label="Send SMS" sx={{ color: 'inherit' }}>
+                  <SmsIcon />
+                </IconButton>
+              </Avatar>
+            </Box>
+          );
+        })()}
       </Box>
-      {/** Phone and SMS buttons below the switches */}
-      {(() => {
-        const digits = (phone || '').replace(/\D/g, '');
-        const greeting = 'Bonjour,';
-        const bodyPrefix = reservationText && reservationText.trim() ? reservationText : greeting;
-        const smsBody = bodyPrefix.startsWith(greeting) ? bodyPrefix : `${greeting}\n${bodyPrefix}`;
-        const smsHref = `sms:${digits}?&body=${encodeURIComponent(smsBody)}`;
-        const telHref = `tel:${digits}`;
-        return (
-          <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
-              <IconButton
-                component="a"
-                href={telHref}
-                aria-label="Call"
-                sx={{ color: '#fff' }}
-              >
-                <PhoneIcon />
-              </IconButton>
-            </Avatar>
-            <Avatar sx={{ bgcolor: 'secondary.main', width: 48, height: 48 }}>
-              <IconButton
-                component="a"
-                href={smsHref}
-                aria-label="Send SMS"
-                sx={{ color: '#fff' }}
-              >
-                <SmsIcon />
-              </IconButton>
-            </Avatar>
-          </Box>
-        );
-      })()}
       <Box sx={{ border: '1px solid', borderColor: 'grey.400', borderRadius: 1, p: 2, mb: 1 }}>
         <Typography sx={{ whiteSpace: 'pre-line' }}>{reservationText}</Typography>
       </Box>

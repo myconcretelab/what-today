@@ -13,7 +13,7 @@ import {
   Chip,
   IconButton
 } from '@mui/material';
-import { Login as LoginIcon, Logout as LogoutIcon, Phone as PhoneIcon } from '@mui/icons-material';
+import { Login as LoginIcon, Logout as LogoutIcon, Phone as PhoneIcon, Sms as SmsIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
 import {
@@ -54,6 +54,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   }, [bookings]);
 
   const telHref = phone => `tel:${(phone || '').replace(/[^0-9+]/g, '')}`;
+  const smsHref = phone => `sms:${(phone || '').replace(/[^0-9+]/g, '')}`;
 
   const initialEvents = bookings.flatMap(ev => {
     const debut = dayjs(ev.debut);
@@ -190,38 +191,53 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       primaryTypographyProps={{ sx: { color: 'inherit' } }}
                       secondaryTypographyProps={{ sx: { color: 'inherit' } }}
                     />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
-                      {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
-                      {ev.type === 'both' && (
-                        <>
-                          <LogoutIcon fontSize="small" />
-                          <LoginIcon fontSize="small" />
-                        </>
-                      )}
-                      {phone && (
-                        <IconButton
-                          component="a"
-                          href={telHref(phone)}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
+                        {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
+                        {ev.type === 'both' && (
+                          <>
+                            <LogoutIcon fontSize="small" />
+                            <LoginIcon fontSize="small" />
+                          </>
+                        )}
+                        <Switch
                           size="small"
-                          sx={{ color: textColor }}
-                          aria-label="Appeler"
-                        >
-                          <PhoneIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                      <Switch
-                        size="small"
-                        checked={Boolean(status)}
-                        onChange={() => onStatusChange(ev.id, !status)}
-                      />
-                      {status && user && (
-                        <Chip
-                          avatar={<Avatar>{user[0]}</Avatar>}
-                          label={user}
-                          size="small"
+                          checked={Boolean(status)}
+                          onChange={() => onStatusChange(ev.id, !status)}
                         />
-                      )}
+                        {status && user && (
+                          <Chip
+                            avatar={<Avatar>{user[0]}</Avatar>}
+                            label={user}
+                            size="small"
+                          />
+                        )}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {phone && (
+                          <IconButton
+                            component="a"
+                            href={telHref(phone)}
+                            size="small"
+                            sx={{ color: textColor }}
+                            aria-label="Appeler"
+                          >
+                            <PhoneIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                        {phone && (
+                          <IconButton
+                            component="a"
+                            href={smsHref(phone)}
+                            size="small"
+                            sx={{ color: textColor }}
+                            aria-label="Envoyer un SMS"
+                          >
+                            <SmsIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
                     </Box>
                   </ListItem>
                 );
@@ -288,38 +304,53 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     }
                     primaryTypographyProps={{ sx: { color: 'inherit' } }}
                   />
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
-                    {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
-                    {ev.type === 'both' && (
-                      <>
-                        <LogoutIcon fontSize="small" />
-                        <LoginIcon fontSize="small" />
-                      </>
-                    )}
-                    {phone && (
-                      <IconButton
-                        component="a"
-                        href={telHref(phone)}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
+                      {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
+                      {ev.type === 'both' && (
+                        <>
+                          <LogoutIcon fontSize="small" />
+                          <LoginIcon fontSize="small" />
+                        </>
+                      )}
+                      <Switch
                         size="small"
-                        sx={{ color: textColor }}
-                        aria-label="Appeler"
-                      >
-                        <PhoneIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                    <Switch
-                      size="small"
-                      checked={Boolean(status)}
-                      onChange={() => onStatusChange(ev.id, !status)}
-                    />
-                    {status && user && (
-                      <Chip
-                        avatar={<Avatar>{user[0]}</Avatar>}
-                        label={user}
-                        size="small"
+                        checked={Boolean(status)}
+                        onChange={() => onStatusChange(ev.id, !status)}
                       />
-                    )}
+                      {status && user && (
+                        <Chip
+                          avatar={<Avatar>{user[0]}</Avatar>}
+                          label={user}
+                          size="small"
+                        />
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {phone && (
+                        <IconButton
+                          component="a"
+                          href={telHref(phone)}
+                          size="small"
+                          sx={{ color: textColor }}
+                          aria-label="Appeler"
+                        >
+                          <PhoneIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {phone && (
+                        <IconButton
+                          component="a"
+                          href={smsHref(phone)}
+                          size="small"
+                          sx={{ color: textColor }}
+                          aria-label="Envoyer un SMS"
+                        >
+                          <SmsIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
                   </Box>
                 </ListItem>
               );
