@@ -589,9 +589,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
         {/** Phone and SMS buttons directly under the switches */}
         {(() => {
           const digits = (phone || '').replace(/\D/g, '');
-          const greeting = 'Bonjour,';
-          const bodyPrefix = reservationText && reservationText.trim() ? reservationText : greeting;
-          const smsBody = bodyPrefix.startsWith(greeting) ? bodyPrefix : `${greeting}\n${bodyPrefix}`;
+          const smsBody = reservationText || '';
           const smsHref = `sms:${digits}?&body=${encodeURIComponent(smsBody)}`;
           const telHref = `tel:${digits}`;
           return (
