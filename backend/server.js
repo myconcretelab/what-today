@@ -544,7 +544,7 @@ app.get('/api/har-calendar', (req, res) => {
 
 app.post('/api/save-reservation', async (req, res) => {
   try {
-    const { giteId, name, start, end, summary, price } = req.body;
+    const { giteId, name, start, end, summary, price, phone } = req.body;
     const sheetName = SHEET_NAMES[giteId];
     if (!sheetName) return res.status(400).json({ success: false, error: 'Invalid gite' });
 
@@ -586,7 +586,7 @@ app.post('/api/save-reservation', async (req, res) => {
                 startRowIndex: insertRow - 1,
                 endRowIndex: insertRow,
                 startColumnIndex: 0,
-                endColumnIndex: 10
+                endColumnIndex: 11
               },
               cell: { userEnteredFormat: { backgroundColor: { red: 0.8, green: 0.9, blue: 1 } } },
               fields: 'userEnteredFormat.backgroundColor'
@@ -597,14 +597,22 @@ app.post('/api/save-reservation', async (req, res) => {
     });
 
     const priceValue = typeof price === 'number' ? price : '';
+    // Prefer explicit phone field; fallback to extracting from summary (pattern "T: <phone>")
+    let phoneValue = '';
+    if (typeof phone === 'string' && phone.trim()) {
+      phoneValue = phone.trim();
+    } else if (typeof summary === 'string') {
+      const m = summary.match(/\bT:\s*([0-9 +().-]+)/);
+      phoneValue = m ? m[1].trim() : '';
+    }
 
     await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${insertRow}:J${insertRow}?valueInputOption=USER_ENTERED`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${insertRow}:K${insertRow}?valueInputOption=USER_ENTERED`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          values: [[name, start, end, '', '', '', priceValue, '', '', summary.replace(/\n/g, ' ')]]
+          values: [[name, start, end, '', '', '', priceValue, '', '', summary.replace(/\n/g, ' '), phoneValue]]
         })
       }
     );

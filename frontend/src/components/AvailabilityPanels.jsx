@@ -178,7 +178,8 @@ export function AvailabilityProvider({ bookings, children }) {
         name,
         start: arrival.format('DD/MM/YYYY'),
         end: departure.format('DD/MM/YYYY'),
-        summary: info.replace(/\n/g, ' ')
+        summary: info.replace(/\n/g, ' '),
+        phone
       };
       const priceNum = selectedPrice && selectedPrice !== 'other' ? Number(selectedPrice) : null;
       if (priceNum != null) payload.price = priceNum;

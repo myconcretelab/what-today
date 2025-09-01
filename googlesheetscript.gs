@@ -3,7 +3,7 @@
 const HAR_JSON_URL = 'https://today.gites-broceliande.com/api/har-calendar';
 
 const YELLOW = '#fff9c4'; // jaune très léger (MD Yellow 100)
-const RUN_COL_INDEX = 12; // Colonne L pour marquer les lignes insérées
+const RUN_COL_INDEX = 15; // Colonne O pour marquer les lignes insérées
 
 // ================== Utils dates & colonnes ==================
 function formatDateFR(date) {
@@ -201,11 +201,11 @@ function majReservationsJSON() {
       // Fond jaune sur toute la ligne colonnes A→J (1 à 10)
       sheet.getRange(lastRow, 1, 1, 10).setBackground(YELLOW);
 
-      // Marquer la ligne avec l'ID de run en colonne L (seul marqueur)
+      // Marquer la ligne avec l'ID de run en colonne O (seul marqueur)
       try {
         sheet.getRange(lastRow, RUN_COL_INDEX).setValue(runId);
       } catch (err) {
-        Logger.log('⚠️ Impossible d\'écrire le marqueur de run en colonne L (ligne ' + lastRow + ') : ' + err);
+        Logger.log('⚠️ Impossible d\'écrire le marqueur de run en colonne O (ligne ' + lastRow + ') : ' + err);
       }
 
       // D/E/F: appliquer les formules et valeurs demandées pour la nouvelle ligne
@@ -376,7 +376,7 @@ function supprimerDernieresInsertions() {
   let runId = props.getProperty('lastRunId');
   let totalDeleted = 0;
 
-  // Si aucun runId en propriétés, essayer de déduire le plus récent en scannant la colonne L
+  // Si aucun runId en propriétés, essayer de déduire le plus récent en scannant la colonne O
   if (!runId) {
     let newest = null;
     ss.getSheets().forEach(sheet => {
@@ -395,7 +395,7 @@ function supprimerDernieresInsertions() {
   }
 
   if (!runId) {
-    SpreadsheetApp.getUi().alert('Aucun marqueur de dernière exécution trouvé (colonne L).');
+    SpreadsheetApp.getUi().alert('Aucun marqueur de dernière exécution trouvé (colonne O).');
     return;
   }
 
