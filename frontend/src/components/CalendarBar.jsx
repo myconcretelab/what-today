@@ -5,19 +5,19 @@ import dayjs from 'dayjs';
 import {
   sourceColor,
   giteInitial,
-  eventColor,
-  borderWidth,
-  borderColor,
   CARD_BG
 } from '../utils';
 
 
 
-// Animation légère pour les arrivées du jour
-const pulse = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-  100% { transform: scale(1); }
+// Animation "shake" courte avec pause ~2s (cycle 2.5s, shake sur 0-20%)
+const shake = keyframes`
+  0% { transform: translateX(0) rotate(0); }
+  5% { transform: translateX(-2px) rotate(-2deg); }
+  10% { transform: translateX(2px) rotate(2deg); }
+  15% { transform: translateX(-1px) rotate(-1deg); }
+  20% { transform: translateX(0) rotate(0); }
+  100% { transform: translateX(0) rotate(0); }
 `;
 
 /**
@@ -70,12 +70,14 @@ function CalendarBar({ bookings, errors }) {
               sx={{
                 textAlign: 'center',
                 flex: 1,
-                borderRight: idx !== days.length - 1 ? '1px solid #ccc' : 'none'
+                borderRight: idx !== days.length - 1 ? '1px solid #ccc' : 'none',
+                gap: 5
               }}
             >
              <Typography variant="caption">
               {isMobile ? date.format("dd DD") : date.format("dddd DD")}
             </Typography>
+            
               <Box
                 sx={{
                   display: 'flex',
@@ -88,8 +90,7 @@ function CalendarBar({ bookings, errors }) {
                 {events.slice(0, 3).map((ev, idx) => {
                   const color = sourceColor(ev.source);
                   const initial = giteInitial(ev.giteId);
-                  const borderClr = borderColor(ev.type);
-                  const bw = borderWidth(ev.type);
+                  const arrow = ev.type === 'arrival' ? '⬆' : ev.type === 'depart' ? '⬇' : '⬍';
                   return (
                     <Tooltip
                       key={idx}
@@ -99,24 +100,28 @@ function CalendarBar({ bookings, errors }) {
                       <Avatar
                         sx={{
                           bgcolor: color,
-                          width: 24,
-                          height: 24,
-                          fontSize: 16,
+                          width: 40,
+                          height: 40,
                           boxShadow: 0,
-                          border: `${bw}px solid`,
-                          borderColor: borderClr,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.1)' },
-                          animation: dayjs(ev.date).isSame(dayjs(), 'day') ? `${pulse} 2s infinite` : 'none'
+                          animation: dayjs(ev.date).isSame(dayjs(), 'day') ? `${shake} 2.5s infinite` : 'none'
                         }}
                       >
-                        {initial}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                          <Typography sx={{ fontSize: 12, fontWeight: 700, height: 14 }}>
+                            {initial}
+                          </Typography>
+                          <Typography sx={{ fontSize: 12, fontWeight: 600, mt: '2px' }}>
+                            {arrow}
+                          </Typography>
+                        </Box>
                       </Avatar>
                     </Tooltip>
                   );
                 })}
                 {events.length > 3 && (
-                  <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
+                  <Avatar sx={{ width: 30, height: 30, fontSize: 12 }}>
                     +{events.length - 3}
                   </Avatar>
                 )}
