@@ -190,7 +190,7 @@ function majReservationsJSON() {
       const lastRow = sheet.getLastRow();
 
       // Exigences spécifiques: colonne I (9) = type → "Airbnb" ou "A définir"
-      //                        colonne H (8) = payout (Total)
+      //                        colonne H (8) = payout (Total) ou formule pour "personal"
       //                        colonne J (10) = comment
       const paiementText = (r.type === 'airbnb') ? 'Airbnb' : 'A définir';
       sheet.getRange(lastRow, 9).setValue(paiementText); // Colonne I
@@ -258,10 +258,11 @@ function majReservationsJSON() {
         Logger.log('⚠️ Application formules/format D/E/F échouée (ligne ' + lastRow + '): ' + err);
       }
 
-      // --- Post auto-fill: règles spécifiques Airbnb ---
+      // --- Post auto-fill: règles spécifiques Airbnb / Personal ---
       // Objectif:
       // - Vérifier que la colonne E (5) contient bien le nombre de nuits
-      // - Diviser la colonne H (8) par la colonne E (5) et appliquer le résultat en G (7)
+      // - Pour Airbnb: G (7) = H (8) / E (5)
+      // - Pour Personal: H (8) = G (7) * E (5)
       // - Sécuriser: éviter division par 0 / NULL
       if (r.type === 'airbnb') {
         try {
@@ -306,6 +307,22 @@ function majReservationsJSON() {
           Logger.log('Airbnb post-traitement (ligne ' + lastRow + '): nightsExpected=' + nightsExpected + ', E=' + eNum + ' (formule=' + hasEFormula + '), H=' + hNum + ', G(H/E)=' + (perNight !== null ? perNight : ''));
         } catch (err) {
           Logger.log('⚠️ Erreur post-traitement Airbnb (ligne ' + lastRow + '): ' + err);
+        }
+      }
+
+      // Personal: calculer automatiquement le total en H = G * E
+      if (r.type === 'personal') {
+        try {
+          var hCell = sheet.getRange(lastRow, 8); // H
+          hCell.setFormula('=G' + lastRow + '*E' + lastRow);
+          try {
+            var hFmt = sheet.getRange(2, 8).getNumberFormat();
+            if (hFmt) hCell.setNumberFormat(hFmt);
+          } catch (fmtErr) {
+            Logger.log('ℹ️ Format nombre H ignoré (ligne ' + lastRow + ') : ' + fmtErr);
+          }
+        } catch (err) {
+          Logger.log('⚠️ Erreur post-traitement Personal (ligne ' + lastRow + '): ' + err);
         }
       }
 
