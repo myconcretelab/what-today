@@ -14,6 +14,9 @@ import {
   IconButton
 } from '@mui/material';
 import { Login as LoginIcon, Logout as LogoutIcon, Phone as PhoneIcon, Sms as SmsIcon } from '@mui/icons-material';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import SwapVert from '@mui/icons-material/ImportExport';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
 import {
@@ -166,18 +169,30 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       transition: 'background-color 0.3s, border-color 0.3s'
                     }}
                   >
-                    <ListItemAvatar>
+                  <ListItemAvatar>
                       <Avatar
                         sx={{
                           bgcolor: color,
-                          boxShadow: 1,
+                          width: 40,
+                          height: 40,
+                          border: '1px solid rgba(0,0,0,0.3)',
+                          boxShadow: 0,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.05)' }
                         }}
                       >
-                        {initial}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                          <Typography sx={{ fontSize: 12, fontWeight: 700, height: 14 }}>
+                            {initial}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: '2px', height: 14 }}>
+                            {(ev.type === 'arrival') && <ArrowUpwardIcon sx={{ fontSize: 16, lineHeight: 1 }} />}
+                            {(ev.type === 'depart') && <ArrowDownwardIcon sx={{ fontSize: 16, lineHeight: 1 }} />}
+                            {(ev.type === 'both') && <SwapVert sx={{ fontSize: 16, lineHeight: 1 }} />}
+                          </Box>
+                        </Box>
                       </Avatar>
-                    </ListItemAvatar>
+                  </ListItemAvatar>
                     <ListItemText
                       primary={ev.giteNom}
                       secondary={
@@ -287,12 +302,24 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     <Avatar
                       sx={{
                         bgcolor: color,
-                        boxShadow: 1,
+                        width: 40,
+                        height: 40,
+                        border: '1px solid rgba(0,0,0,0.3)',
+                        boxShadow: 0,
                         transition: 'transform 0.2s',
                         '&:hover': { transform: 'scale(1.05)' }
                       }}
                     >
-                      {initial}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, height: 14 }}>
+                          {initial}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mt: '2px', height: 14 }}>
+                          {(ev.type === 'arrival') && <ArrowUpwardIcon sx={{ fontSize: 16, lineHeight: 1 }} />}
+                          {(ev.type === 'depart') && <ArrowDownwardIcon sx={{ fontSize: 16, lineHeight: 1 }} />}
+                          {(ev.type === 'both') && <SwapVert sx={{ fontSize: 16, lineHeight: 1 }} />}
+                        </Box>
+                      </Box>
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
