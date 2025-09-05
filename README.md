@@ -14,6 +14,9 @@ sous forme d'une liste et d'un petit calendrier coloré.
   colorées et icônes selon la plateforme, liste détaillée des arrivées.
 - Formatage des dates en français.
 - Affichage d'un `?` lorsqu'une source iCal est inaccessible.
+- Commentaires Google Sheets mis en cache côté serveur pour un affichage immédiat
+  (réponse depuis le cache, puis actualisation en arrière‑plan et mise à jour
+  automatique du cache si des changements sont détectés).
 
 ## Pré‑requis
 - Node.js ≥ 18
@@ -38,6 +41,12 @@ npm start
 ```
 Le serveur écoute par défaut sur le port **3001** et charge les fichiers `ics`
 une seule fois au démarrage.
+
+Les commentaires de réservations sont exposés via:
+- `GET /api/comments-range?start=YYYY-MM-DD&end=YYYY-MM-DD` — renvoie d'abord
+  les valeurs du cache, puis déclenche une mise à jour en arrière‑plan depuis
+  Google Sheets qui met à jour le cache si nécessaire.
+- `GET /api/comments/:giteId/:date` — même logique cache‑d'abord + rafraîchissement.
 
 ### Lancer le frontend
 ```bash

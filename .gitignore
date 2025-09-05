@@ -2,6 +2,8 @@
 google-sheets-api-key.json
 
 backend/www.airbnb.fr.har
+backend/comments-cache.json
+
 # Logs
 logs
 *.log

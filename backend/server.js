@@ -90,6 +90,8 @@ const STATUS_FILE = path.join(__dirname, 'statuses.json');
 
 // Fichier de stockage des tarifs et textes
 const DATA_FILE = path.join(__dirname, 'data.json');
+// Fichier de stockage du cache des commentaires Google Sheets
+const COMMENTS_FILE = path.join(__dirname, 'comments-cache.json');
 
 function readStatuses() {
   if (!fs.existsSync(STATUS_FILE)) return {};
@@ -127,6 +129,123 @@ function writeTexts(texts) {
   const data = readData();
   data.texts = texts;
   writeData(data);
+}
+
+// --- Comments cache helpers ---
+function readCommentsCache() {
+  try {
+    if (!fs.existsSync(COMMENTS_FILE)) return {};
+    const raw = fs.readFileSync(COMMENTS_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    console.error('Failed to read comments cache:', e.message);
+    return {};
+  }
+}
+
+function writeCommentsCache(cache) {
+  try {
+    fs.writeFileSync(COMMENTS_FILE, JSON.stringify(cache, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to write comments cache:', e.message);
+  }
+}
+
+const refreshingSheets = new Set();
+
+function commentsKey(giteId, isoDate) {
+  return `${giteId}_${isoDate}`;
+}
+
+async function fetchSheetRowsWithPhone(sheetName, token) {
+  const valueRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:K`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!valueRes.ok) {
+    const text = await valueRes.text().catch(() => '');
+    throw new Error(`Sheets values error ${valueRes.status}: ${text}`);
+  }
+  const valueData = await valueRes.json();
+  return valueData.values || [];
+}
+
+async function refreshCommentsForAllGitesInRange(startIso, endIso) {
+  const token = await getAccessToken();
+  const startDate = dayjs(startIso, 'YYYY-MM-DD');
+  const endDate = dayjs(endIso, 'YYYY-MM-DD');
+  const currentCache = readCommentsCache();
+  const updatedCache = { ...currentCache };
+
+  for (const [giteId, sheetName] of Object.entries(SHEET_NAMES)) {
+    const sheetKey = `range:${sheetName}`;
+    if (refreshingSheets.has(sheetKey)) continue;
+    refreshingSheets.add(sheetKey);
+    try {
+      const rows = await fetchSheetRowsWithPhone(sheetName, token);
+      for (const row of rows) {
+        const rowDate = dayjs(row[0], 'DD/MM/YYYY');
+        if (!rowDate.isValid()) continue;
+        if (rowDate.isBefore(startDate) || rowDate.isAfter(endDate)) continue;
+        const key = commentsKey(giteId, rowDate.format('YYYY-MM-DD'));
+        const comment = row[8] && row[8].trim() ? row[8] : '';
+        const phone = row[9] && row[9].trim() ? row[9] : '';
+        const prev = updatedCache[key] || {};
+        if (prev.comment !== comment || prev.phone !== phone) {
+          updatedCache[key] = {
+            comment,
+            phone,
+            updatedAt: new Date().toISOString()
+          };
+        }
+      }
+    } catch (e) {
+      console.error(`Failed to refresh comments for ${sheetName}:`, e.message);
+    } finally {
+      refreshingSheets.delete(sheetKey);
+    }
+  }
+
+  // Write if changed
+  const before = JSON.stringify(currentCache);
+  const after = JSON.stringify(updatedCache);
+  if (before !== after) writeCommentsCache(updatedCache);
+}
+
+async function refreshSingleComment(giteId, isoDate) {
+  const sheetName = SHEET_NAMES[giteId];
+  if (!sheetName) return;
+  const token = await getAccessToken();
+  const sheetKey = `single:${sheetName}`;
+  if (refreshingSheets.has(sheetKey)) return;
+  refreshingSheets.add(sheetKey);
+  try {
+    const rows = await fetchSheetRowsWithPhone(sheetName, token);
+    const target = dayjs(isoDate, 'YYYY-MM-DD').format('DD/MM/YYYY');
+    let found = null;
+    for (const row of rows) {
+      if ((row[0] || '').trim() === target) {
+        const comment = row[8] && row[8].trim() ? row[8] : '';
+        const phone = row[9] && row[9].trim() ? row[9] : '';
+        found = { comment, phone };
+        break;
+      }
+    }
+    if (found) {
+      const cache = readCommentsCache();
+      const key = commentsKey(giteId, isoDate);
+      const prev = cache[key] || {};
+      if (prev.comment !== found.comment || prev.phone !== found.phone) {
+        cache[key] = { ...found, updatedAt: new Date().toISOString() };
+        writeCommentsCache(cache);
+      }
+    }
+  } catch (e) {
+    console.error(`Failed to refresh single comment for ${giteId}/${isoDate}:`, e.message);
+  } finally {
+    refreshingSheets.delete(sheetKey);
+  }
 }
 
 // --- School holidays cache ---
@@ -424,29 +543,30 @@ app.get('/api/comments-range', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing date range' });
   }
   try {
-    const token = await getAccessToken();
     const startDate = dayjs(start, 'YYYY-MM-DD');
     const endDate = dayjs(end, 'YYYY-MM-DD');
+
+    // 1) Immediate cached response
+    const cache = readCommentsCache();
     const results = {};
-    for (const [giteId, sheetName] of Object.entries(SHEET_NAMES)) {
-      const valueRes = await fetch(
-        // Include column K to get phone numbers
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:K`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const valueData = await valueRes.json();
-      const rows = valueData.values || [];
-      for (const row of rows) {
-        const rowDate = dayjs(row[0], 'DD/MM/YYYY');
-        if (!rowDate.isBefore(startDate) && !rowDate.isAfter(endDate)) {
-          const key = `${giteId}_${rowDate.format('YYYY-MM-DD')}`;
-          const comment = row[8] && row[8].trim() ? row[8] : '';
-          const phone = row[9] && row[9].trim() ? row[9] : '';
-          results[key] = { comment, phone };
+    for (const [giteId] of Object.entries(SHEET_NAMES)) {
+      // Scan cache keys for this gite within range
+      for (const [key, val] of Object.entries(cache)) {
+        if (!key.startsWith(`${giteId}_`)) continue;
+        const iso = key.slice(giteId.length + 1);
+        const d = dayjs(iso, 'YYYY-MM-DD');
+        if (!d.isValid()) continue;
+        if (!d.isBefore(startDate) && !d.isAfter(endDate)) {
+          results[key] = { comment: val.comment || '', phone: val.phone || '' };
         }
       }
     }
     res.json(results);
+
+    // 2) Background refresh and cache update
+    refreshCommentsForAllGitesInRange(start, end).catch(err => {
+      console.error('Background refresh failed:', err.message);
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
@@ -461,25 +581,17 @@ app.get('/api/comments/:giteId/:date', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid gite' });
   }
   try {
-    console.time('sheet-load');
-    const token = await getAccessToken();
-    const valueRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:J`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const valueData = await valueRes.json();
-    const rows = valueData.values || [];
-    const targetDate = dayjs(date, 'YYYY-MM-DD').format('DD/MM/YYYY');
-    let comment = 'pas de commentaires';
-    for (const row of rows) {
-      if (row[0] === targetDate) {
-        comment = row[8] && row[8].trim() ? row[8] : 'pas de commentaires';
-        break;
-      }
-    }
-    console.log(`Recherche commentaire pour ${giteId} le ${targetDate}: ${comment}`);
-    console.timeEnd('sheet-load');
-    res.json({ comment });
+    // 1) Serve cached immediately
+    const cache = readCommentsCache();
+    const key = commentsKey(giteId, date);
+    const cached = cache[key];
+    const immediate = cached?.comment || 'pas de commentaires';
+    res.json({ comment: immediate, phone: cached?.phone || '' });
+
+    // 2) Background refresh and cache update
+    refreshSingleComment(giteId, date).catch(err => {
+      console.error('Background single refresh failed:', err.message);
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
