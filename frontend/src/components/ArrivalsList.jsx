@@ -219,33 +219,27 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     <ListItemText
                       primary={ev.giteNom}
                       secondary={
-                        <>
-                          {format(ev.date)}
-                          {displayedComment && (
-                            <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
-                              {displayedComment}
-                            </Typography>
-                          )}
-                        </>
+                        displayedComment ? (
+                          <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
+                            {displayedComment}
+                          </Typography>
+                        ) : null
                       }
-                      primaryTypographyProps={{ sx: { color: 'inherit' } }}
+                      primaryTypographyProps={{ sx: { color: 'inherit', fontWeight: 700 } }}
                       secondaryTypographyProps={{ sx: { color: 'inherit' } }}
+                      sx={{ mr: 1 }}
                     />
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Switch
                           size="small"
                           checked={Boolean(status)}
                           onChange={() => onStatusChange(ev.id, !status)}
                         />
-                        {status && user && (
-                          <Chip
-                            avatar={<Avatar>{user[0]}</Avatar>}
-                            label={user}
-                            size="small"
-                          />
-                        )}
                       </Box>
+                      {status && user && (
+                        <Chip label={user} size="small" variant="outlined" sx={{ mt: 0.5 }} />
+                      )}
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         {phone && (
                           <IconButton
@@ -344,31 +338,34 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
-                    primary={`${format(ev.date)} - ${ev.giteNom}`}
+                    primary={format(ev.date)}
                     secondary={
-                      displayedComment ? (
-                        <Typography component="span" variant="caption" sx={{ color: 'inherit' }}>
-                          {displayedComment}
+                      <>
+                        <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
+                          {ev.giteNom}
                         </Typography>
-                      ) : null
+                        {displayedComment && (
+                          <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
+                            {displayedComment}
+                          </Typography>
+                        )}
+                      </>
                     }
-                    primaryTypographyProps={{ sx: { color: 'inherit' } }}
+                    primaryTypographyProps={{ sx: { color: 'inherit', fontWeight: 600 } }}
+                    secondaryTypographyProps={{ sx: { color: 'inherit' } }}
+                    sx={{ mr: 1 }}
                   />
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Switch
                         size="small"
                         checked={Boolean(status)}
                         onChange={() => onStatusChange(ev.id, !status)}
                       />
-                      {status && user && (
-                        <Chip
-                          avatar={<Avatar>{user[0]}</Avatar>}
-                          label={user}
-                          size="small"
-                        />
-                      )}
                     </Box>
+                    {status && user && (
+                      <Chip label={user} size="small" variant="outlined" sx={{ mt: 0.5 }} />
+                    )}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       {phone && (
                         <IconButton
