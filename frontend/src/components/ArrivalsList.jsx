@@ -13,7 +13,7 @@ import {
   Chip,
   IconButton
 } from '@mui/material';
-import { Login as LoginIcon, Logout as LogoutIcon, Phone as PhoneIcon, Sms as SmsIcon } from '@mui/icons-material';
+import { Phone as PhoneIcon, Sms as SmsIcon } from '@mui/icons-material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapVert from '@mui/icons-material/ImportExport';
@@ -233,14 +233,6 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     />
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
-                        {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
-                        {ev.type === 'both' && (
-                          <>
-                            <LogoutIcon fontSize="small" />
-                            <LoginIcon fontSize="small" />
-                          </>
-                        )}
                         <Switch
                           size="small"
                           checked={Boolean(status)}
@@ -364,14 +356,6 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                   />
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {ev.type === 'arrival' && <LoginIcon fontSize="small" />}
-                      {ev.type === 'depart' && <LogoutIcon fontSize="small" />}
-                      {ev.type === 'both' && (
-                        <>
-                          <LogoutIcon fontSize="small" />
-                          <LoginIcon fontSize="small" />
-                        </>
-                      )}
                       <Switch
                         size="small"
                         checked={Boolean(status)}
