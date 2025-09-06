@@ -187,6 +187,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     bgcolor: itemBg,
                       color: textColor,
                       mb: 1,
+                      px: 2,
+                      py: 1,
                       border: `${bw}px solid`,
                       borderColor: statusBorderColor(status),
                       transition: 'background-color 0.3s, border-color 0.3s'
@@ -308,9 +310,10 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     bgcolor: itemBg,
                     color: textColor,
                     mb: 1,
-                    border: `${bw}px solid`,
-                    borderColor: statusBorderColor(status),
-                    transition: 'background-color 0.3s, border-color 0.3s'
+                    px: 2,
+                    py: 1,
+                    border: 'none',
+                    transition: 'background-color 0.3s'
                   }}
                 >
                   <ListItemAvatar>
@@ -319,7 +322,6 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                         bgcolor: color,
                         width: 40,
                         height: 40,
-                        border: '1px solid rgba(0,0,0,0.3)',
                         boxShadow: 0,
                         transition: 'transform 0.2s',
                         '&:hover': { transform: 'scale(1.05)' }
@@ -341,11 +343,32 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     primary={format(ev.date)}
                     secondary={
                       <>
-                        <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          display="block"
+                          sx={{
+                            color: 'inherit',
+                            fontFamily: `'Museo Slab', 'Museo', serif`,
+                            fontWeight: 500,
+                            fontSize: '0.9rem'
+                          }}
+                        >
                           {ev.giteNom}
                         </Typography>
                         {displayedComment && (
-                          <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            display="block"
+                            sx={{
+                              color: 'inherit',
+                              fontFamily: `'Museo Slab', 'Museo', serif`,
+                              fontWeight: 300,
+                              fontStyle: 'italic',
+                              mt: 0.5
+                            }}
+                          >
                             {displayedComment}
                           </Typography>
                         )}
