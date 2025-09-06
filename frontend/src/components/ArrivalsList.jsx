@@ -156,7 +156,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       {['today', 'tomorrow'].map(key => (
         <Card key={key} sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
           <CardContent>
-            <Typography variant="h6">
+            <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 700 }}>
               {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
             </Typography>
             <List>
@@ -280,7 +280,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
 
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
         <CardContent>
-          <Typography variant="h6">Prochains jours</Typography>
+          <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 700 }}>Prochains jours</Typography>
           <List>
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
