@@ -370,7 +370,8 @@ const GITES = [
     couleur: '#3949AB', // bleu
     sources: [
       { url: 'http://www.abritel.fr/icalendar/3d33e48aeded478f8c11deda36f20008.ics?nonTentative', type: 'Abritel' },
-      { url: 'https://www.airbnb.fr/calendar/ical/16674752.ics?s=54a0101efa1112c86756ed2184506173', type: 'Airbnb' }
+      { url: 'https://www.airbnb.fr/calendar/ical/16674752.ics?s=54a0101efa1112c86756ed2184506173', type: 'Airbnb' },
+      { url: 'https://www.airbnb.fr/calendar/ical/1256595615494549883.ics?s=61ea920c4f6392380d88563f08adcfee', type: 'Airbnb' }
     ]
   },
   {
@@ -427,6 +428,17 @@ async function chargerCalendriers() {
             if (
               source.type === 'Gites de France' &&
               ev.summary !== 'BOOKED'
+            ) {
+              continue;
+            }
+
+            // Spécifique à l'ICAL Airbnb 1256595615494549883:
+            // ne garder que les événements dont le SUMMARY est exactement "Reserved"
+            if (
+              typeof ev.summary === 'string' &&
+              source.type === 'Airbnb' &&
+              source.url.includes('/1256595615494549883.ics') &&
+              ev.summary.trim() !== 'Reserved'
             ) {
               continue;
             }
