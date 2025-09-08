@@ -9,7 +9,6 @@ import {
   TextField,
   Button,
   Popover,
-  Checkbox,
   FormControlLabel,
   CircularProgress,
   MenuItem,
@@ -70,7 +69,9 @@ export function AvailabilityProvider({ bookings, children }) {
   const [info, setInfo] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [draps, setDraps] = useState(false);
+  // Inventory limits: 7 single beds, 6 double beds
+  const [singleBeds, setSingleBeds] = useState(0);
+  const [doubleBeds, setDoubleBeds] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
   const availability = useAvailability(bookings, arrival, departure, 1);
   const [holidayDates, setHolidayDates] = useState(new Set());
@@ -78,6 +79,7 @@ export function AvailabilityProvider({ bookings, children }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [airbnbUrl, setAirbnbUrl] = useState(null);
+  const [savedForRange, setSavedForRange] = useState(false);
   const [prices, setPrices] = useState([]);
   const [selectedPrice, setSelectedPrice] = useState('');
   const [texts, setTexts] = useState([]);
@@ -87,9 +89,10 @@ export function AvailabilityProvider({ bookings, children }) {
     const parts = [];
     if (name) parts.push(`N: ${name}`);
     if (phone) parts.push(`T: ${phone}`);
-    parts.push(`Draps: ${draps ? 'oui' : 'non'}`);
+    parts.push(`Lits simples: ${singleBeds}`);
+    parts.push(`Lits doubles: ${doubleBeds}`);
     setInfo(parts.join('\n'));
-  }, [name, phone, draps]);
+  }, [name, phone, singleBeds, doubleBeds]);
 
   useEffect(() => {
     fetchSchoolHolidays()
@@ -157,6 +160,7 @@ export function AvailabilityProvider({ bookings, children }) {
     setAirbnbUrl(null);
     setSaveError(false);
     setSaving(false);
+    setSavedForRange(false);
   };
 
   const handleReserve = (g, onGoto) => {
@@ -164,6 +168,7 @@ export function AvailabilityProvider({ bookings, children }) {
     setAirbnbUrl(null);
     setSaveError(false);
     setSaving(false);
+    setSavedForRange(false);
     if (onGoto) onGoto();
   };
 
@@ -200,6 +205,7 @@ export function AvailabilityProvider({ bookings, children }) {
         const link = GITE_LINKS[selectedGite.id];
         const url = link ? `${link}/edit-selected-dates/${start}/${end}` : null;
         setAirbnbUrl(url);
+        setSavedForRange(true);
       } catch (e) {
         setSaveError(true);
       } finally {
@@ -284,8 +290,10 @@ export function AvailabilityProvider({ bookings, children }) {
         setName,
         phone,
         setPhone,
-        draps,
-        setDraps,
+        singleBeds,
+        setSingleBeds,
+        doubleBeds,
+        setDoubleBeds,
         info,
         handlePhoneChange,
         handleSave,
@@ -300,6 +308,7 @@ export function AvailabilityProvider({ bookings, children }) {
         texts,
         selectedTexts,
         setSelectedTexts,
+        savedForRange,
         nightCount
       }}
     >
@@ -447,8 +456,10 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
     setName,
     phone,
     setPhone,
-    draps,
-    setDraps,
+    singleBeds,
+    setSingleBeds,
+    doubleBeds,
+    setDoubleBeds,
     info,
     handlePhoneChange,
     handleSave,
@@ -462,8 +473,10 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
     texts,
     selectedTexts,
     setSelectedTexts,
+    savedForRange,
     nightCount
   } = useContext(AvailabilityContext);
+  const [showBedding, setShowBedding] = useState(false);
 
   const theme = useTheme();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
@@ -525,10 +538,41 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
       </TextField>
       &nbsp;&nbsp;
       <FormControlLabel
-        control={<Checkbox checked={draps} onChange={e => setDraps(e.target.checked)} />}
+        control={<Switch checked={showBedding} onChange={e => setShowBedding(e.target.checked)} />}
         label="Draps"
         sx={{ mb: 1 }}
       />
+      &nbsp;&nbsp;
+      {showBedding && (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+        <TextField
+          select
+          label="Lit(s) simple"
+          value={singleBeds}
+          onChange={e => setSingleBeds(Number(e.target.value))}
+          sx={{ minWidth: 140, flex: { xs: '1 1 140px', sm: '0 0 auto' } }}
+        >
+          {Array.from({ length: 8 }, (_, i) => (
+            <MenuItem key={i} value={i}>
+              {i}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          label="Lit(s) double"
+          value={doubleBeds}
+          onChange={e => setDoubleBeds(Number(e.target.value))}
+          sx={{ minWidth: 140, flex: { xs: '1 1 140px', sm: '0 0 auto' } }}
+        >
+          {Array.from({ length: 7 }, (_, i) => (
+            <MenuItem key={i} value={i}>
+              {i}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Box>
+      )}
       <TextField
         multiline
         rows={4}
@@ -543,6 +587,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
           size="small"
           color={saveError ? 'error' : saving ? 'warning' : 'primary'}
           onClick={handleSave}
+          disabled={saving || savedForRange}
         >
           {saving && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
           {saveError ? 'Erreur !' : 'Sauvegarder'}
