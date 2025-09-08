@@ -22,12 +22,13 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EditIcon from '@mui/icons-material/Edit';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { PANEL_COLORS } from './utils';
+import { ThemeColorsProvider, useThemeColors } from './theme.jsx';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
 
-function App() {
+function InnerApp() {
+  const { theme } = useThemeColors();
   const [auth, setAuth] = useState(localStorage.getItem(AUTH_KEY) === 'true');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ reservations: [], erreurs: [] });
@@ -91,8 +92,7 @@ function App() {
 
   if (!auth) return <Login onLogin={handleLogin} />;
   if (loading) return <Loader />;
-
-  const panelBg = PANEL_COLORS[panel] || PANEL_COLORS[0];
+  const panelBg = (theme.panelColors && theme.panelColors[panel]) || (theme.panelColors && theme.panelColors[0]) || '#ffffff';
 
   return (
     <AvailabilityProvider bookings={data.reservations}>
@@ -183,7 +183,7 @@ function App() {
             bottom: 0,
             left: 0,
             width: '100%',
-            bgcolor: '#f48fb1',
+            bgcolor: theme.menu?.bg || '#f48fb1',
             display: 'flex',
             py: 1
           }}
@@ -196,35 +196,43 @@ function App() {
               transform: 'translateX(-50%)',
               width:40,
               height: 40,
-              border: '2px solid #fff',
+              border: `2px solid ${theme.menu?.indicator || '#fff'}`,
               borderRadius: '50%',
               transition: 'left 0.3s',
               pointerEvents: 'none'
             }}
           />
           <Box sx={{ flex: 1, textAlign: 'center' }}>
-            <IconButton onClick={() => setPanel(0)} sx={{ color: '#fff' }}>
+            <IconButton onClick={() => setPanel(0)} sx={{ color: theme.menu?.icon || '#fff' }}>
               <AccessTimeIcon />
             </IconButton>
           </Box>
           <Box sx={{ flex: 1, textAlign: 'center' }}>
-            <IconButton onClick={() => setPanel(1)} sx={{ color: '#fff' }}>
+            <IconButton onClick={() => setPanel(1)} sx={{ color: theme.menu?.icon || '#fff' }}>
               <CalendarMonthIcon />
             </IconButton>
           </Box>
           <Box sx={{ flex: 1, textAlign: 'center' }}>
-            <IconButton onClick={() => setPanel(2)} sx={{ color: '#fff' }}>
+            <IconButton onClick={() => setPanel(2)} sx={{ color: theme.menu?.icon || '#fff' }}>
               <EditIcon />
             </IconButton>
           </Box>
           <Box sx={{ flex: 1, textAlign: 'center' }}>
-            <IconButton onClick={() => setPanel(3)} sx={{ color: '#fff' }}>
+            <IconButton onClick={() => setPanel(3)} sx={{ color: theme.menu?.icon || '#fff' }}>
               <SettingsIcon />
             </IconButton>
           </Box>
         </Box>
       </Box>
     </AvailabilityProvider>
+  );
+}
+
+function App() {
+  return (
+    <ThemeColorsProvider>
+      <InnerApp />
+    </ThemeColorsProvider>
   );
 }
 

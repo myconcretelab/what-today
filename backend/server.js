@@ -103,8 +103,22 @@ function writeStatuses(data) {
 }
 
 function readData() {
-  if (!fs.existsSync(DATA_FILE)) return { prices: [], texts: [] };
-  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+  try {
+    if (!fs.existsSync(DATA_FILE)) return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    if (!raw || !raw.trim()) return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
+    // normalize keys
+    if (!Array.isArray(parsed.prices)) parsed.prices = [];
+    if (!Array.isArray(parsed.texts)) parsed.texts = [];
+    if (!Array.isArray(parsed.themes)) parsed.themes = [];
+    if (!parsed.activeThemeId) parsed.activeThemeId = 'default';
+    return parsed;
+  } catch (e) {
+    console.error('Failed to read data.json:', e.message);
+    return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
+  }
 }
 
 function writeData(data) {

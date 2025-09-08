@@ -14,12 +14,17 @@ import {
   CardContent,
   Chip,
   MenuItem,
-  CircularProgress
+  CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Radio
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { CARD_BG } from '../utils';
+import { useThemeColors } from '../theme.jsx';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   fetchPrices,
   savePrices,
@@ -37,6 +42,18 @@ export default function SettingsPanel({ panelBg, onBack }) {
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
   const [prices, setPrices] = useState([]);
   const [texts, setTexts] = useState([]);
+  const {
+    theme: colorTheme,
+    themes,
+    activeId,
+    setActiveId,
+    addTheme,
+    removeTheme,
+    renameTheme,
+    updateThemeDeep,
+    updateTheme,
+    saveThemesToServer
+  } = useThemeColors();
   const fileInputRef = useRef(null);
   const harInputRef = useRef(null);
   const [isHarUploading, setIsHarUploading] = useState(false);
@@ -130,6 +147,10 @@ export default function SettingsPanel({ panelBg, onBack }) {
       await saveData(data);
       setPrices(data.prices || []);
       setTexts(data.texts || []);
+      if (Array.isArray(data.themes)) {
+        localStorage.setItem('wt-themes', JSON.stringify(data.themes));
+        localStorage.setItem('wt-active-theme', data.activeThemeId || data.themes[0]?.id || 'default');
+      }
     } catch (err) {
       // ignore
     }
@@ -174,7 +195,9 @@ export default function SettingsPanel({ panelBg, onBack }) {
         </IconButton>
         <Typography variant="h6" sx={{ color: headerColor }}>Réglages</Typography>
       </Box>
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      {/* Theme management moved to bottom */}
+
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 3 }}>
             Gestion des prix
@@ -225,7 +248,7 @@ export default function SettingsPanel({ panelBg, onBack }) {
           </Box>
           </CardContent>
       </Card>
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", mt: 4, mb: 2 }}>
             <Typography variant="h6"  sx={{ mb: 2 }}>
@@ -273,7 +296,7 @@ export default function SettingsPanel({ panelBg, onBack }) {
         style={{ display: 'none' }}
         onChange={handleImportData}
       />
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Box sx={{ mt: 2 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
@@ -295,7 +318,7 @@ export default function SettingsPanel({ panelBg, onBack }) {
         style={{ display: 'none' }}
         onChange={handleImportHar}
       />
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Box sx={{ mt: 2 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
@@ -329,6 +352,221 @@ export default function SettingsPanel({ panelBg, onBack }) {
               </Typography>
             )}
           </Box>
+        </CardContent>
+      </Card>
+      {/* Theme management at the bottom with accordion per theme */}
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="h6">Couleurs / Thèmes</Typography>
+          </Box>
+          {themes.map(t => (
+            <Accordion key={t.id} disableGutters sx={{ mb: 1 }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <Radio
+                    checked={activeId === t.id}
+                    onChange={() => setActiveId(t.id)}
+                    onClick={e => e.stopPropagation()}
+                    inputProps={{ 'aria-label': 'Activer ce thème' }}
+                  />
+                  <Typography sx={{ flex: 1 }}>{t.name}</Typography>
+                  {t.id !== 'default' && (
+                    <IconButton
+                      size="small"
+                      onClick={e => { e.stopPropagation(); removeTheme(t.id); }}
+                      aria-label="Supprimer le thème"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: 2 }}>
+                  <TextField
+                    label="Nom"
+                    value={t.name}
+                    onChange={e => renameTheme(t.id, e.target.value)}
+                    sx={{ minWidth: 220 }}
+                  />
+                </Box>
+
+                <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Événements</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))', gap: 1, mb: 2 }}>
+                  {[
+                    ['arrival', 'Arrivée'],
+                    ['depart', 'Départ'],
+                    ['both', 'Arrivée + Départ'],
+                    ['done', 'Terminé']
+                  ].map(([key, label]) => (
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TextField
+                        type="color"
+                        label={label}
+                        value={(t.events && t.events[key]) || '#000000'}
+                        onChange={e => updateThemeDeep(t.id, `events.${key}`, e.target.value)}
+                        sx={{ width: 130 }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        label="HEX"
+                        value={(t.events && t.events[key]) || ''}
+                        onChange={e => updateThemeDeep(t.id, `events.${key}`, e.target.value)}
+                        sx={{ width: 140 }}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Panneaux (4)</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 1, mb: 2 }}>
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TextField
+                        type="color"
+                        label={`Panel ${i + 1}`}
+                        value={t.panelColors?.[i] || '#ffffff'}
+                        onChange={e => {
+                          const arr = [...(t.panelColors || [])];
+                          arr[i] = e.target.value;
+                          updateTheme(t.id, { panelColors: arr });
+                        }}
+                        sx={{ width: 130 }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        label="HEX"
+                        value={t.panelColors?.[i] || ''}
+                        onChange={e => {
+                          const arr = [...(t.panelColors || [])];
+                          arr[i] = e.target.value;
+                          updateTheme(t.id, { panelColors: arr });
+                        }}
+                        sx={{ width: 140 }}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Fond des cartes</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <TextField
+                    type="color"
+                    label="CARD_BG"
+                    value={t.cardBg || '#ffffff'}
+                    onChange={e => updateTheme(t.id, { cardBg: e.target.value })}
+                    sx={{ width: 130 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    label="HEX"
+                    value={t.cardBg || ''}
+                    onChange={e => updateTheme(t.id, { cardBg: e.target.value })}
+                    sx={{ width: 140 }}
+                  />
+                </Box>
+
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Couleurs de texte</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 1 }}>
+                  {[
+                    ['primary', 'Texte'],
+                    ['title', 'Titre'],
+                    ['caption', 'Caption']
+                  ].map(([key, label]) => (
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TextField
+                        type="color"
+                        label={label}
+                        value={(t.text && t.text[key]) || '#000000'}
+                        onChange={e => updateThemeDeep(t.id, `text.${key}`, e.target.value)}
+                        sx={{ width: 130 }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        label="HEX"
+                        value={(t.text && t.text[key]) || ''}
+                        onChange={e => updateThemeDeep(t.id, `text.${key}`, e.target.value)}
+                        sx={{ width: 140 }}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Menu</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))', gap: 1 }}>
+                  {[
+                    ['bg', 'Fond du menu'],
+                    ['icon', 'Icônes'],
+                    ['indicator', 'Cercle']
+                  ].map(([key, label]) => (
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TextField
+                        type="color"
+                        label={label}
+                        value={(t.menu && t.menu[key]) || '#000000'}
+                        onChange={e => updateThemeDeep(t.id, `menu.${key}`, e.target.value)}
+                        sx={{ width: 130 }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        label="HEX"
+                        value={(t.menu && t.menu[key]) || ''}
+                        onChange={e => updateThemeDeep(t.id, `menu.${key}`, e.target.value)}
+                        sx={{ width: 140 }}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          ))}
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Button size="small" startIcon={<AddIcon />} onClick={() => addTheme(colorTheme)}>
+              Nouveau thème
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => document.getElementById('wt-import-themes')?.click()}>
+              Importer thèmes
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => {
+              const payload = { themes, activeThemeId: activeId };
+              const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'themes.json';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
+              Exporter thèmes
+            </Button>
+            <Button size="small" color="success" variant="contained" onClick={() => saveThemesToServer()}>
+              Enregistrer sur le serveur
+            </Button>
+          </Box>
+          <input
+            id="wt-import-themes"
+            type="file"
+            accept="application/json"
+            style={{ display: 'none' }}
+            onChange={async e => {
+              try {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                const json = JSON.parse(text);
+                if (Array.isArray(json?.themes)) {
+                  const nextThemes = json.themes;
+                  const nextActive = json.activeThemeId || nextThemes[0]?.id || 'default';
+                  localStorage.setItem('wt-themes', JSON.stringify(nextThemes));
+                  localStorage.setItem('wt-active-theme', nextActive);
+                  window.location.reload();
+                }
+              } catch {}
+              finally {
+                e.target.value = '';
+              }
+            }}
+          />
         </CardContent>
       </Card>
     </Box>

@@ -22,11 +22,10 @@ import dayjs from 'dayjs';
 import {
   sourceColor,
   giteInitial,
-  eventColor,
   borderWidth,
-  statusBorderColor,
-  CARD_BG
+  
 } from '../utils';
+import { useThemeColors } from '../theme.jsx';
 import { fetchComments } from '../services/api';
 
 /**
@@ -38,6 +37,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   const tomorrow = today.add(1, 'day');
   const theme = useTheme();
   const [comments, setComments] = React.useState({});
+  const { theme: colorTheme } = useThemeColors();
 
   React.useEffect(() => {
     let timeoutId = null;
@@ -154,7 +154,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   return (
     <Box sx={{ p: 0 }}>
       {['today', 'tomorrow'].map(key => (
-        <Card key={key} sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+        <Card key={key} sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
           <CardContent>
             <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 700 }}>
               {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
@@ -165,13 +165,14 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const initial = giteInitial(ev.giteId);
               const status = statuses[ev.id]?.done;
               const user = statuses[ev.id]?.user;
-              const bg = eventColor(ev.type);
+              const bg = colorTheme.events?.[ev.type] || colorTheme.events?.both || '#ffffff';
               const itemBg = status ? theme.palette.grey[200] : bg;
               const textColor = status
                 ? theme.palette.text.primary
                 : theme.palette.getContrastText(itemBg);
 
               const bw = borderWidth(ev.type);
+              const brColor = status ? (colorTheme.events?.done || '#000') : (colorTheme.events?.depart || '#000');
               // Use the displayed event date for comment lookup
               const commentKey = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
               const entry = comments[commentKey];
@@ -190,7 +191,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       px: 2,
                       py: 1,
                       border: `${bw}px solid`,
-                      borderColor: statusBorderColor(status),
+                      borderColor: brColor,
                       transition: 'background-color 0.3s, border-color 0.3s'
                     }}
                   >
@@ -280,14 +281,14 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
         </Card>
       ))}
 
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 700 }}>Prochains jours</Typography>
           <List>
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
               const initial = giteInitial(ev.giteId);
-              const bg = eventColor(ev.type);
+              const bg = colorTheme.events?.[ev.type] || colorTheme.events?.both || '#ffffff';
               const status = statuses[ev.id]?.done;
               const user = statuses[ev.id]?.user;
               const itemBg = status ? theme.palette.grey[200] : bg;

@@ -5,11 +5,8 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapVert from '@mui/icons-material/ImportExport';
 import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
-import {
-  sourceColor,
-  giteInitial,
-  CARD_BG
-} from '../utils';
+import { sourceColor, giteInitial } from '../utils';
+import { useThemeColors } from '../theme.jsx';
 
 
 
@@ -29,6 +26,7 @@ const shake = keyframes`
  * (une couleur par source). Tooltip au survol pour voir le détail.
 */
 function CalendarBar({ bookings, errors }) {
+  const { theme: colorTheme } = useThemeColors();
   const isMobile = useMediaQuery(theme => theme.breakpoints.down("sm")); // Détection mobile/tablette
   // Construction de la structure { date -> [events] }
   const initialEvents = bookings.flatMap(ev => {
@@ -64,7 +62,7 @@ function CalendarBar({ bookings, errors }) {
   });
 
   return (
-    <Card sx={{ mb: 3, pb:0, boxShadow: 'none', bgcolor: CARD_BG }}>
+    <Card sx={{ mb: 3, pb:0, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
       <CardContent sx={{ p: 1 }}>
         <Box sx={{ display: 'flex', overflowX: 'auto', width: '100%' }}>
           {days.map(({ date, events }, idx) => (

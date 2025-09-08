@@ -33,7 +33,7 @@ import {
   fetchPrices,
   fetchTexts
 } from '../services/api';
-import { CARD_BG } from '../utils';
+import { useThemeColors } from '../theme.jsx';
 
 // Enable plugin
 dayjs.extend(isSameOrAfter);
@@ -333,6 +333,7 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
   const nightCount = departure.diff(arrival, 'day');
   const theme = useTheme();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
+  const { theme: colorTheme } = useThemeColors();
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
@@ -342,7 +343,7 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
         </IconButton>
         <Typography variant="h6" sx={{ color: headerColor }}>Choisir des dates</Typography>
       </Box>
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
         <TextField sx={{ width: 320 }}
@@ -370,7 +371,7 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
       {availability.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {availability.map(g => (
-            <Card key={g.id} sx={{ p: 1, boxShadow: 'none', bgcolor: CARD_BG }}>
+            <Card key={g.id} sx={{ p: 1, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography sx={{ color: g.free ? '#64b5f6' : '#f48fb1' }}>{g.name}</Typography>
                 {g.free ? (
@@ -480,6 +481,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
 
   const theme = useTheme();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
+  const { theme: colorTheme } = useThemeColors();
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
@@ -499,7 +501,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
         </Typography>
       )}
       
-<Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
           <CardContent>
 
       <Typography variant="h6" sx={{ mb: 1 }}>
@@ -607,7 +609,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
       </Box>
 </CardContent>
       </Card>
-<Card sx={{ mb: 2, boxShadow: 'none', bgcolor: CARD_BG }}>
+<Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
           <CardContent>
       <Typography variant="h6" sx={{ mb: 1 }}>
         SMS
