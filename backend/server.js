@@ -709,33 +709,36 @@ app.post('/api/save-reservation', async (req, res) => {
     if (idx === -1) idx = rows.length;
     const insertRow = idx + 2;
 
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        requests: [
-          {
-            insertDimension: {
-              range: { sheetId, dimension: 'ROWS', startIndex: insertRow - 1, endIndex: insertRow },
-              inheritFromBefore: false
+    // Helper to insert a single highlighted row at a given index
+    async function insertHighlightedRow(rowIndex) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          requests: [
+            {
+              insertDimension: {
+                range: { sheetId, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex },
+                inheritFromBefore: false
+              }
+            },
+            {
+              repeatCell: {
+                range: {
+                  sheetId,
+                  startRowIndex: rowIndex - 1,
+                  endRowIndex: rowIndex,
+                  startColumnIndex: 0,
+                  endColumnIndex: 11
+                },
+                cell: { userEnteredFormat: { backgroundColor: { red: 0.8, green: 0.9, blue: 1 } } },
+                fields: 'userEnteredFormat.backgroundColor'
+              }
             }
-          },
-          {
-            repeatCell: {
-              range: {
-                sheetId,
-                startRowIndex: insertRow - 1,
-                endRowIndex: insertRow,
-                startColumnIndex: 0,
-                endColumnIndex: 11
-              },
-              cell: { userEnteredFormat: { backgroundColor: { red: 0.8, green: 0.9, blue: 1 } } },
-              fields: 'userEnteredFormat.backgroundColor'
-            }
-          }
-        ]
-      })
-    });
+          ]
+        })
+      });
+    }
 
     const priceValue = typeof price === 'number' ? price : '';
     // Prefer explicit phone field; fallback to extracting from summary (pattern "T: <phone>")
@@ -747,16 +750,78 @@ app.post('/api/save-reservation', async (req, res) => {
       phoneValue = m ? m[1].trim() : '';
     }
 
-    await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${insertRow}:K${insertRow}?valueInputOption=USER_ENTERED`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          values: [[name, start, end, '', '', '', priceValue, '', '', summary.replace(/\n/g, ' '), phoneValue]]
-        })
+    // Build monthly chunks if the reservation spans multiple months
+    const chunks = [];
+    if (startDate.isValid() && endDate.isValid()) {
+      let cur = startDate.startOf('day');
+      const endD = endDate.startOf('day');
+      while (cur.isBefore(endD, 'day')) {
+        const nextMonthStart = cur.add(1, 'month').startOf('month');
+        const stop = endD.isBefore(nextMonthStart) ? endD : nextMonthStart;
+        if (stop.isAfter(cur, 'day')) {
+          chunks.push({
+            start: cur,
+            end: stop
+          });
+        }
+        cur = stop;
       }
-    );
+    } else {
+      // Fallback: single chunk with raw strings if dates are invalid
+      chunks.push({ start: startDate, end: endDate });
+    }
+
+    // Insert each chunk in order, updating our local rows array to preserve ordering
+    let insertOffset = 0;
+    for (const ch of chunks) {
+      // Compute position for this chunk among current rows
+      let idx2 = rows.findIndex(r => {
+        const rowStart = dayjs(r[0], 'DD/MM/YYYY');
+        const rowEnd = dayjs(r[1], 'DD/MM/YYYY');
+        return ch.start.isBefore(rowStart) || (ch.start.isSame(rowStart) && ch.end.isBefore(rowEnd));
+      });
+      if (idx2 === -1) idx2 = rows.length;
+      const rowNumber = idx2 + 2 + insertOffset; // +2 for header offset, +insertOffset for prior inserts
+
+      // Insert highlighted row
+      await insertHighlightedRow(rowNumber);
+
+      // Compute additional columns for this chunk
+      const startStr = ch.start.format('DD/MM/YYYY');
+      const endStr = ch.end.format('DD/MM/YYYY');
+      const monthName = ch.start.format('MMMM');
+      const nights = Math.max(ch.end.diff(ch.start, 'day'), 0);
+      const capacity = giteId === 'liberte' ? 10 : 2; // Column F
+      const formulaH = `=G${rowNumber}*E${rowNumber}`; // Column H
+      const statusI = 'A définir';
+
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${rowNumber}:K${rowNumber}?valueInputOption=USER_ENTERED`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            values: [[
+              name,                          // A
+              startStr,                      // B
+              endStr,                        // C
+              monthName,                     // D
+              nights,                        // E
+              capacity,                      // F
+              priceValue,                    // G
+              formulaH,                      // H
+              statusI,                       // I
+              summary.replace(/\n/g, ' '),  // J
+              phoneValue                     // K
+            ]]
+          })
+        }
+      );
+
+      // Update local representation of rows to include this new row
+      rows.splice(idx2, 0, [startStr, endStr]);
+      insertOffset += 1;
+    }
 
     res.json({ success: true });
   } catch (err) {

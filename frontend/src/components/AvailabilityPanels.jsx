@@ -16,6 +16,7 @@ import {
   Avatar,
   Switch
 } from '@mui/material';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -337,6 +338,14 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
+      {/* Enable clicks on next/previous month passive days in react-date-range */}
+      <GlobalStyles
+        styles={{
+          '.rdrDayPassive': { pointerEvents: 'auto' },
+          '.rdrDayPassive .rdrDayNumber': { pointerEvents: 'auto' },
+          '.rdrDayPassive .rdrDayNumber span': { pointerEvents: 'auto' }
+        }}
+      />
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
         <IconButton onClick={onBack} size="large" sx={{ color: headerColor }}>
           <ArrowBackIcon fontSize="large" />
@@ -348,7 +357,7 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
         <TextField sx={{ width: 320 }}
           label="Période"
-          value={`${arrival.format('YYYY-MM-DD')} - ${departure.format('YYYY-MM-DD')}`}
+          value={`${arrival.format('DD/MM/YYYY')} - ${departure.format('DD/MM/YYYY')}`}
           onClick={handleOpenPicker}
           InputProps={{ readOnly: true, sx: { fontSize: 22 }}}
         />
