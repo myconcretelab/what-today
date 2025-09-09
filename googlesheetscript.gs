@@ -4,6 +4,9 @@ const HAR_JSON_URL = 'https://today.gites-broceliande.com/api/har-calendar';
 
 const YELLOW = '#fff9c4'; // jaune très léger (MD Yellow 100)
 const RUN_COL_INDEX = 15; // Colonne O pour marquer les lignes insérées
+// Certaines feuilles/colonnes sont des colonnes saisies (DataSource/Input) et
+// n'autorisent pas setNumberFormat. Désactiver les formats au niveau cellule.
+const APPLY_CELL_FORMATS = false;
 
 // ================== Utils dates & colonnes ==================
 function formatDateFR(date) {
@@ -237,22 +240,10 @@ function majReservationsJSON() {
         // D doit afficher le mois du début → format personnalisé "mm (mmmm)".
         // La mise en forme peut échouer si la colonne est une "colonne saisie" (data source, etc.).
         // On isole chaque opération pour éviter d'interrompre l'exécution complète.
-        try {
-          sheet.getRange(lastRow, 4).setNumberFormat('mm (mmmm)');
-        } catch (fmtErr) {
-          Logger.log('ℹ️ Format nombre D ignoré (ligne ' + lastRow + ') : ' + fmtErr);
-        }
-        try {
-          var eFmt = sheet.getRange(2, 5).getNumberFormat();
-          if (eFmt) sheet.getRange(lastRow, 5).setNumberFormat(eFmt);
-        } catch (fmtErr) {
-          Logger.log('ℹ️ Format nombre E ignoré (ligne ' + lastRow + ') : ' + fmtErr);
-        }
-        try {
-          var fFmt = sheet.getRange(2, 6).getNumberFormat();
-          if (fFmt) sheet.getRange(lastRow, 6).setNumberFormat(fFmt);
-        } catch (fmtErr) {
-          Logger.log('ℹ️ Format nombre F ignoré (ligne ' + lastRow + ') : ' + fmtErr);
+        if (APPLY_CELL_FORMATS) {
+          try { sheet.getRange(lastRow, 4).setNumberFormat('mm (mmmm)'); } catch (fmtErr) {}
+          try { var eFmt = sheet.getRange(2, 5).getNumberFormat(); if (eFmt) sheet.getRange(lastRow, 5).setNumberFormat(eFmt); } catch (fmtErr) {}
+          try { var fFmt = sheet.getRange(2, 6).getNumberFormat(); if (fFmt) sheet.getRange(lastRow, 6).setNumberFormat(fFmt); } catch (fmtErr) {}
         }
       } catch (err) {
         Logger.log('⚠️ Application formules/format D/E/F échouée (ligne ' + lastRow + '): ' + err);
@@ -315,11 +306,8 @@ function majReservationsJSON() {
         try {
           var hCell = sheet.getRange(lastRow, 8); // H
           hCell.setFormula('=G' + lastRow + '*E' + lastRow);
-          try {
-            var hFmt = sheet.getRange(2, 8).getNumberFormat();
-            if (hFmt) hCell.setNumberFormat(hFmt);
-          } catch (fmtErr) {
-            Logger.log('ℹ️ Format nombre H ignoré (ligne ' + lastRow + ') : ' + fmtErr);
+          if (APPLY_CELL_FORMATS) {
+            try { var hFmt = sheet.getRange(2, 8).getNumberFormat(); if (hFmt) hCell.setNumberFormat(hFmt); } catch (fmtErr) {}
           }
         } catch (err) {
           Logger.log('⚠️ Erreur post-traitement Personal (ligne ' + lastRow + '): ' + err);
@@ -349,6 +337,13 @@ function majReservationsJSON() {
     Logger.log(`✅ ${totalAjoutes} nouvelles réservations insérées dans "${feuilleNom}"`);
     perSheetCounts[feuilleNom] = totalAjoutes;
     ss.toast('Fini ' + feuilleNom + ': ' + totalAjoutes + ' ajout(s)', 'Synchronisation', 3);
+  }
+
+  // Scission automatique des chevauchements (sans pop-up) juste après import
+  try {
+    verifierEtScinderChevauchementsCore(false);
+  } catch (e) {
+    Logger.log("⚠️ Scission auto ignorée: " + e);
   }
 
   // Afficher un résumé en modal avec le nombre d'insertion par gîte
@@ -498,6 +493,241 @@ function insertMonthSeparators(sheet, iDebut, colCount) {
   return inserted;
 }
 
+// Détermine si une réservation chevauche un changement de mois
+function chevaucheChangementDeMois(dDebut, dFin) {
+  if (!dDebut || !dFin) return false;
+  const endInclusive = new Date(dFin.getFullYear(), dFin.getMonth(), dFin.getDate() - 1);
+  return ymKey(dDebut) !== ymKey(endInclusive);
+}
+
+function premierJourMoisSuivant(d) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+}
+
+// Vérifie toutes les réservations et scinde celles qui chevauchent deux mois
+function verifierEtScinderChevauchementsCore(showSummary) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+  const perSheet = {};
+  const props = PropertiesService.getDocumentProperties();
+  const runId = props.getProperty('lastRunId');
+
+  ss.toast('Vérification des chevauchements…', 'Scission réservations', 5);
+
+  ss.getSheets().forEach(sheet => {
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow <= 1 || lastCol <= 0) return;
+
+    const header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const iDebut = getColumnIndex(header, 'Debut');
+    const iFin = getColumnIndex(header, 'Fin');
+    if (iDebut === -1 || iFin === -1) return;
+
+    // Set de toutes les paires existantes "Debut|Fin" (formatées dd/MM/yyyy)
+    const allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    const pairSet = new Set();
+    for (let r = 0; r < allData.length; r++) {
+      const d = toDateFromCell(allData[r][iDebut]);
+      const f = toDateFromCell(allData[r][iFin]);
+      const ds = formatDateFR(d);
+      const fs = formatDateFR(f);
+      if (ds && fs) pairSet.add(ds + '|' + fs);
+    }
+
+    // Collecter les lignes à traiter puis à supprimer
+    const aScinder = [];
+    for (let r = 0; r < allData.length; r++) {
+      const d = toDateFromCell(allData[r][iDebut]);
+      const f = toDateFromCell(allData[r][iFin]);
+      if (!d || !f) continue;
+      if (!chevaucheChangementDeMois(d, f)) continue;
+      aScinder.push({
+        rowIndex: r + 2, // index réel dans la feuille
+        values: allData[r]
+      });
+    }
+
+    let inserted = 0;
+    const toDelete = [];
+
+    // Pour chaque ligne à scinder
+    aScinder.forEach(item => {
+      const original = item.values.slice();
+      const dStart = toDateFromCell(original[iDebut]);
+      const dEnd = toDateFromCell(original[iFin]);
+      if (!dStart || !dEnd) return;
+
+      const boundary = premierJourMoisSuivant(dStart);
+
+      const seg1Debut = formatDateFR(dStart);
+      const seg1Fin = formatDateFR(boundary);
+      const seg2Debut = formatDateFR(boundary);
+      const seg2Fin = formatDateFR(dEnd);
+
+      // Vérifications de non‑doublon
+      const hasSeg1 = pairSet.has(seg1Debut + '|' + seg1Fin);
+      const hasSeg2 = pairSet.has(seg2Debut + '|' + seg2Fin);
+
+      // Déterminer type de réservation via colonne I (= 9)
+      const typeCell = String((original[8] || '')).toLowerCase();
+      const type = (typeCell.indexOf('airbnb') !== -1) ? 'airbnb' : 'personal';
+
+      // Helper d'ajout d'une nouvelle ligne à partir de la copie
+      function appendSegment(debutStr, finStr) {
+        const rowCopy = original.slice();
+        rowCopy[iDebut] = debutStr;
+        rowCopy[iFin] = finStr;
+        // D/E (4/5) recalculées après append → laisser vides pour l'instant
+        if (rowCopy.length >= 5) {
+          rowCopy[3] = '';
+          rowCopy[4] = '';
+        }
+        sheet.appendRow(rowCopy);
+        const newRow = sheet.getLastRow();
+        // Marquage visuel + runId si dispo
+        try { sheet.getRange(newRow, 1, 1, 10).setBackground(YELLOW); } catch (e) {}
+        try { if (runId) sheet.getRange(newRow, RUN_COL_INDEX).setValue(runId); } catch (e) {}
+
+        // Formules D/E et valeur F comme lors de l'insertion JSON
+        try {
+          sheet.getRange(newRow, 4).setFormula('=B' + newRow);
+          sheet.getRange(newRow, 5).setFormula('=C' + newRow + '-B' + newRow);
+
+          // F selon le nom de la feuille
+          let fVal = '';
+          switch ((sheet.getName() || '').toLowerCase()) {
+            case 'gree':
+            case 'phonsine':
+            case 'edmond':
+              fVal = 2; break;
+            case 'liberté':
+            case 'liberte':
+              fVal = 10; break;
+            default:
+              fVal = '';
+          }
+          if (fVal !== '') sheet.getRange(newRow, 6).setValue(fVal);
+
+          // Formats (meilleurs-efforts)
+          if (APPLY_CELL_FORMATS) {
+            try { sheet.getRange(newRow, 4).setNumberFormat('mm (mmmm)'); } catch (e) {}
+            try { const eFmt = sheet.getRange(2, 5).getNumberFormat(); if (eFmt) sheet.getRange(newRow, 5).setNumberFormat(eFmt); } catch (e) {}
+            try { const fFmt = sheet.getRange(2, 6).getNumberFormat(); if (fFmt) sheet.getRange(newRow, 6).setNumberFormat(fFmt); } catch (e) {}
+          }
+
+          // Post-traitement G/H selon type
+          if (type === 'airbnb') {
+            try {
+              const eRange = sheet.getRange(newRow, 5);
+              const hRange = sheet.getRange(newRow, 8);
+              const gRange = sheet.getRange(newRow, 7);
+              const eVal = eRange.getValue();
+              const hVal = hRange.getValue();
+              const eNum = (typeof eVal === 'number') ? eVal : parseFloat(String(eVal).replace(',', '.'));
+              const hNum = (typeof hVal === 'number') ? hVal : parseFloat(String(hVal).replace(',', '.'));
+              if (isFinite(hNum) && isFinite(eNum) && eNum > 0) {
+                gRange.setValue(hNum / eNum);
+              } else {
+                gRange.setValue('');
+              }
+            } catch (err) {}
+          } else {
+            try {
+              const hCell = sheet.getRange(newRow, 8);
+              hCell.setFormula('=G' + newRow + '*E' + newRow);
+              if (APPLY_CELL_FORMATS) {
+                try { const hFmt = sheet.getRange(2, 8).getNumberFormat(); if (hFmt) hCell.setNumberFormat(hFmt); } catch (e) {}
+              }
+            } catch (err) {}
+          }
+        } catch (e) {}
+
+        inserted++;
+        return newRow;
+      }
+
+      // Ajouter les segments manquants
+      if (!hasSeg1) {
+        appendSegment(seg1Debut, seg1Fin);
+        pairSet.add(seg1Debut + '|' + seg1Fin);
+      }
+      if (!hasSeg2) {
+        appendSegment(seg2Debut, seg2Fin);
+        pairSet.add(seg2Debut + '|' + seg2Fin);
+      }
+
+      // Si les deux segments existent désormais, planifier la suppression de la ligne d'origine
+      if (pairSet.has(seg1Debut + '|' + seg1Fin) && pairSet.has(seg2Debut + '|' + seg2Fin)) {
+        toDelete.push(item.rowIndex);
+      }
+    });
+
+    // Supprimer les lignes originales (du bas vers le haut)
+    toDelete.sort((a, b) => b - a).forEach(r => {
+      try { sheet.deleteRow(r); } catch (e) {}
+    });
+
+    // Option: retrier et réinsérer les séparateurs de mois
+    if (sheet.getLastRow() > 1) {
+      const iDebutNow = getColumnIndex(header, 'Debut');
+      if (iDebutNow !== -1) {
+        const range = sheet.getRange(2, 1, sheet.getLastRow()-1, header.length);
+        range.sort({column: iDebutNow + 1, ascending: true});
+        insertMonthSeparators(sheet, iDebutNow, header.length);
+      }
+    }
+
+    if (aScinder.length > 0 || inserted > 0 || toDelete.length > 0) {
+      perSheet[sheet.getName()] = { trouves: aScinder.length, inseres: inserted, supprimes: toDelete.length };
+    }
+  });
+
+  // Résumé
+  const names = Object.keys(perSheet);
+  if (showSummary === undefined) showSummary = true;
+  if (!showSummary) return; // pas d'UI si appelé en interne
+  if (names.length === 0) {
+    ui.alert('Vérification terminée', 'Aucun chevauchement détecté.', ui.ButtonSet.OK);
+    return;
+  }
+
+  const rows = names
+    .sort()
+    .map(n => {
+      const x = perSheet[n];
+      return '<tr><td style="padding:4px 8px;">' + n + '</td>' +
+             '<td style="padding:4px 8px;text-align:right;">' + x.trouves + '</td>' +
+             '<td style="padding:4px 8px;text-align:right;">' + x.inseres + '</td>' +
+             '<td style="padding:4px 8px;text-align:right;">' + x.supprimes + '</td></tr>';
+    })
+    .join('');
+
+  try {
+    const html = HtmlService
+      .createHtmlOutput(
+        '<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.4;">' +
+          '<h3 style="margin:0 0 8px 0;">Vérification des chevauchements</h3>' +
+          '<p style="margin:0 0 8px 0;">Lignes trouvées, segments insérés et lignes supprimées:</p>' +
+          '<table style="border-collapse:collapse;">' +
+            '<thead><tr><th style="text-align:left;padding:4px 8px;">Feuille</th><th style="text-align:right;padding:4px 8px;">Chevauch.</th><th style="text-align:right;padding:4px 8px;">Insérés</th><th style="text-align:right;padding:4px 8px;">Supprimés</th></tr></thead>' +
+            '<tbody>' + (rows || '<tr><td colspan="4">Aucun</td></tr>') + '</tbody>' +
+          '</table>' +
+        '</div>'
+      )
+      .setWidth(520)
+      .setHeight(220);
+    ui.showModalDialog(html, 'Chevauchements – Résumé');
+  } catch (e) {
+    ui.alert('Vérification terminée', names.length + ' feuille(s) traitée(s).', ui.ButtonSet.OK);
+  }
+}
+
+// Wrapper pour menu (affiche le résumé)
+function verifierEtScinderChevauchements() {
+  verifierEtScinderChevauchementsCore(true);
+}
+
 // Recopie, pour une nouvelle ligne, les formules des colonnes indiquées
 // depuis la première ligne au-dessus qui contient une formule dans ces colonnes.
 function autoFillFormulasFromAbove(sheet, targetRow, columns) {
@@ -525,5 +755,6 @@ function onOpen() {
     .createMenu('Réservations Gîtes')
     .addItem('Actualiser depuis JSON (HAR)', 'majReservationsJSON')
     .addItem('Supprimer dernières insertions', 'supprimerDernieresInsertions')
+    .addItem('Vérifier chevauchements et scinder', 'verifierEtScinderChevauchements')
     .addToUi();
 }
