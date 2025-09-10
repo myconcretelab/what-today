@@ -375,7 +375,7 @@ const GITES = [
     sources: [
       { url: 'https://www.airbnb.fr/calendar/ical/48504640.ics?s=c27d399e029a03b6b4dd791fbf026fee', type: 'Airbnb' },
       { url: 'http://www.abritel.fr/icalendar/094a7b5f6cf345f9b51940e07e588ab2.ics', type: 'Abritel' },
-      { url: 'https://reservation.itea.fr/iCal_70b69a7451324ef50d43907fdb8b5c81.ics?aicc=f3792c7c79df6c160a2518bf3c55e9e6', type: 'Gites de France' }
+      { url: 'https://reservation.itea.fr/iCal_70b69a7451324ef50d43907fdb8b5c81.ics?aicc=f3792c7c79df6c160a2518bf3c55e9e6', type: 'Gites de France', includeSummary: 'BOOKED' }
     ]
   },
   {
@@ -385,7 +385,7 @@ const GITES = [
     sources: [
       { url: 'http://www.abritel.fr/icalendar/3d33e48aeded478f8c11deda36f20008.ics?nonTentative', type: 'Abritel' },
       { url: 'https://www.airbnb.fr/calendar/ical/16674752.ics?s=54a0101efa1112c86756ed2184506173', type: 'Airbnb' },
-      { url: 'https://www.airbnb.fr/calendar/ical/1256595615494549883.ics?s=61ea920c4f6392380d88563f08adcfee', type: 'Airbnb' }
+      { url: 'https://www.airbnb.fr/calendar/ical/1256595615494549883.ics?s=61ea920c4f6392380d88563f08adcfee', type: 'Airbnb', includeSummary: 'Reserved' }
     ]
   },
   {
@@ -397,6 +397,89 @@ const GITES = [
     ]
   }
 ];
+
+// --- Helpers: summary filters and dedup ---
+function normalizeToArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.filter(Boolean);
+  return [val];
+}
+
+function summaryMatches(summary, needle) {
+  if (!summary || !needle) return false;
+  const s = String(summary);
+  const n = String(needle);
+  return s.includes(n) || s.trim() === n;
+}
+
+function shouldKeepBySummary(summary, source) {
+  const includes = normalizeToArray(source.includeSummary);
+  const excludes = normalizeToArray(source.excludeSummary);
+
+  // Include filter: require at least one match if provided
+  if (includes.length > 0) {
+    const ok = includes.some(n => summaryMatches(summary, n));
+    if (!ok) return false;
+  }
+  // Exclude filter: drop if any match
+  if (excludes.length > 0) {
+    const bad = excludes.some(n => summaryMatches(summary, n));
+    if (bad) return false;
+  }
+  return true;
+}
+
+function dedupeReservations(list) {
+  // 1) Dédoublonnage strict: même (giteId, debut, fin)
+  const byPeriod = new Map();
+  for (const ev of list) {
+    const key = `${ev.giteId}|${ev.debut}|${ev.fin}`;
+    const prev = byPeriod.get(key);
+    if (!prev) {
+      byPeriod.set(key, ev);
+      continue;
+    }
+    const better = preferReservation(prev, ev);
+    byPeriod.set(key, better);
+  }
+
+  const winners = Array.from(byPeriod.values());
+
+  // 2) Fusion supplémentaire: même (giteId, fin) même jour de sortie
+  const byEnd = new Map();
+  for (const ev of winners) {
+    const key = `${ev.giteId}|${ev.fin}`;
+    const prev = byEnd.get(key);
+    if (!prev) {
+      byEnd.set(key, ev);
+      continue;
+    }
+    const better = preferReservation(prev, ev);
+    byEnd.set(key, better);
+  }
+
+  return Array.from(byEnd.values());
+}
+
+function preferReservation(a, b) {
+  const aPref = isReservedOrBooked(a.resume);
+  const bPref = isReservedOrBooked(b.resume);
+  if (aPref && !bPref) return a;
+  if (!aPref && bPref) return b;
+  // Sinon, choisir celle qui commence le plus tôt (couvre la période la plus longue)
+  const aStart = dayjs(a.debut, 'YYYY-MM-DD');
+  const bStart = dayjs(b.debut, 'YYYY-MM-DD');
+  if (aStart.isValid() && bStart.isValid()) {
+    return aStart.isBefore(bStart) ? a : b;
+  }
+  return a; // fallback stable
+}
+
+function isReservedOrBooked(summary) {
+  if (!summary) return false;
+  const s = String(summary).trim().toUpperCase();
+  return s === 'RESERVED' || s === 'BOOKED';
+}
 
 // Stockage en mémoire des réservations et des erreurs
 let reservations = [];
@@ -439,21 +522,8 @@ async function chargerCalendriers() {
               typeSource = 'Direct';
             }
 
-            if (
-              source.type === 'Gites de France' &&
-              ev.summary !== 'BOOKED'
-            ) {
-              continue;
-            }
-
-            // Spécifique à l'ICAL Airbnb 1256595615494549883:
-            // ne garder que les événements dont le SUMMARY est exactement "Reserved"
-            if (
-              typeof ev.summary === 'string' &&
-              source.type === 'Airbnb' &&
-              source.url.includes('/1256595615494549883.ics') &&
-              ev.summary.trim() !== 'Reserved'
-            ) {
+            // Filtrage générique par summary via la config de la source
+            if (!shouldKeepBySummary(ev.summary, source)) {
               continue;
             }
 
@@ -485,6 +555,10 @@ async function chargerCalendriers() {
     const fin = dayjs(ev.fin);
     return fin.isAfter(startWindow);
   });
+
+  // Déduplication: si deux sources donnent la même période pour le même gîte,
+  // on conserve l'événement dont le SUMMARY est "Reserved" ou "BOOKED".
+  reservations = dedupeReservations(reservations);
   console.timeEnd('ical-load');
 }
 
@@ -539,6 +613,71 @@ app.post('/api/reload-icals', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Endpoint de debug pour inspecter les doublons et le dédoublonnage
+// Usage: GET /api/debug-duplicates?giteId=gree&day=YYYY-MM-DD
+app.get('/api/debug-duplicates', (req, res) => {
+  const { giteId } = req.query;
+  let { day } = req.query;
+  if (!day) {
+    day = dayjs().add(1, 'day').format('YYYY-MM-DD'); // par défaut: demain
+  }
+
+  // Filtrer les réservations par gîte si fourni
+  let subset = Array.isArray(reservations) ? reservations.slice() : [];
+  if (giteId) subset = subset.filter(r => r.giteId === giteId);
+
+  // Garder les événements qui couvrent la date ciblée [debut, fin)
+  subset = subset.filter(r => {
+    const start = dayjs(r.debut, 'YYYY-MM-DD');
+    const end = dayjs(r.fin, 'YYYY-MM-DD');
+    const target = dayjs(day, 'YYYY-MM-DD');
+    return target.isSame(start, 'day') || (target.isAfter(start, 'day') && target.isBefore(end, 'day'));
+  });
+
+  // Grouper par même période
+  const groups = {};
+  for (const r of subset) {
+    const key = `${r.giteId}|${r.debut}|${r.fin}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  }
+
+  const duplicateGroups = Object.entries(groups)
+    .filter(([, arr]) => arr.length > 1)
+    .map(([key, arr]) => ({
+      key,
+      count: arr.length,
+      items: arr.map(x => ({ source: x.source, resume: x.resume, debut: x.debut, fin: x.fin }))
+    }));
+
+  // Grouper par même jour de sortie
+  const groupsByEnd = {};
+  for (const r of subset) {
+    const key = `${r.giteId}|${r.fin}`;
+    if (!groupsByEnd[key]) groupsByEnd[key] = [];
+    groupsByEnd[key].push(r);
+  }
+  const duplicateEndGroups = Object.entries(groupsByEnd)
+    .filter(([, arr]) => arr.length > 1)
+    .map(([key, arr]) => ({
+      key,
+      count: arr.length,
+      items: arr.map(x => ({ source: x.source, resume: x.resume, debut: x.debut, fin: x.fin }))
+    }));
+
+  const after = dedupeReservations(subset);
+
+  res.json({
+    giteId: giteId || null,
+    day,
+    beforeCount: subset.length,
+    afterCount: after.length,
+    duplicateGroups,
+    duplicateEndGroups,
+    after
+  });
 });
 
 app.get('/api/school-holidays', (req, res) => {
