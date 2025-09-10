@@ -355,11 +355,16 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-        <TextField sx={{ width: 320 }}
+        <TextField
+          sx={{
+            width: 320,
+            // Reduce input font-size on small screens for better fit
+            '& .MuiInputBase-input': { fontSize: { xs: 13, sm: 18 } }
+          }}
           label="Période"
-          value={`${arrival.format('DD/MM/YYYY')} - ${departure.format('DD/MM/YYYY')}`}
+          value={`${arrival.format('DD/MM/YY')} - ${departure.format('DD/MM/YY')}`}
           onClick={handleOpenPicker}
-          InputProps={{ readOnly: true, sx: { fontSize: 22 }}}
+          InputProps={{ readOnly: true }}
         />
         <Popover
           open={Boolean(anchorEl)}
@@ -650,12 +655,12 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
           const telHref = `tel:${digits}`;
           return (
             <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center' }}>
-              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 48, height: 48 }}>
+              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 48, height: 48, border: 'none' }}>
                 <IconButton component="a" href={telHref} aria-label="Call" sx={{ color: 'inherit' }}>
                   <PhoneIcon />
                 </IconButton>
               </Avatar>
-              <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', width: 48, height: 48 }}>
+              <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', width: 48, height: 48, border: 'none' }}>
                 <IconButton component="a" href={smsHref} aria-label="Send SMS" sx={{ color: 'inherit' }}>
                   <SmsIcon />
                 </IconButton>

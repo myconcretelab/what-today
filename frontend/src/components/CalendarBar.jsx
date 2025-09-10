@@ -107,6 +107,7 @@ function CalendarBar({ bookings, errors }) {
                           bgcolor: color,
                           width: 40,
                           height: 40,
+                          border: 'none',
                           boxShadow: 0,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.1)' },
@@ -126,7 +127,7 @@ function CalendarBar({ bookings, errors }) {
                   );
                 })}
                 {events.length > 3 && (
-                  <Avatar sx={{ width: 30, height: 30, fontSize: 12 }}>
+                  <Avatar sx={{ width: 30, height: 30, fontSize: 12, border: 'none' }}>
                     +{events.length - 3}
                   </Avatar>
                 )}

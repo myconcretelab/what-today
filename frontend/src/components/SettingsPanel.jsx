@@ -23,7 +23,8 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { useThemeColors } from '../theme.jsx';
+import RestoreIcon from '@mui/icons-material/Restore';
+import { useThemeColors, DEFAULT_THEME } from '../theme.jsx';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   fetchPrices,
@@ -54,6 +55,7 @@ export default function SettingsPanel({ panelBg, onBack }) {
     updateTheme,
     saveThemesToServer
   } = useThemeColors();
+  
   const fileInputRef = useRef(null);
   const harInputRef = useRef(null);
   const [isHarUploading, setIsHarUploading] = useState(false);
@@ -116,6 +118,126 @@ export default function SettingsPanel({ panelBg, onBack }) {
   const handleSaveTexts = () => {
     saveTexts(texts).catch(() => {});
   };
+
+  // ---------------- Google Fonts management (primary font selector) ----------------
+  const GOOGLE_FONTS = [
+    {
+      id: 'default',
+      label: 'Par défaut (Museo)',
+      href: '',
+      stack: "'Museo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'inter',
+      label: 'Inter',
+      href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap',
+      stack: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'roboto',
+      label: 'Roboto',
+      href: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
+      stack: "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'open-sans',
+      label: 'Open Sans',
+      href: 'https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap',
+      stack: "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'lato',
+      label: 'Lato',
+      href: 'https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap',
+      stack: "'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'montserrat',
+      label: 'Montserrat',
+      href: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap',
+      stack: "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'source-sans-3',
+      label: 'Source Sans 3',
+      href: 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap',
+      stack: "'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'poppins',
+      label: 'Poppins',
+      href: 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap',
+      stack: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
+    },
+    {
+      id: 'merriweather',
+      label: 'Merriweather (serif)',
+      href: 'https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap',
+      stack: "'Merriweather', Georgia, 'Times New Roman', Times, serif"
+    },
+    {
+      id: 'playfair',
+      label: 'Playfair Display (serif)',
+      href: 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap',
+      stack: "'Playfair Display', Georgia, 'Times New Roman', Times, serif"
+    }
+  ];
+
+  const FONT_FAMILY_KEY = 'wt-font-family';
+  const FONT_LINK_KEY = 'wt-font-url';
+
+  const [selectedFontId, setSelectedFontId] = useState(() => {
+    try {
+      return localStorage.getItem('wt-font-id') || 'default';
+    } catch {
+      return 'default';
+    }
+  });
+
+  const applyFontSelection = (font) => {
+    // Inject or update the Google Fonts link
+    const linkId = 'wt-google-font';
+    let link = document.getElementById(linkId);
+    if (!link) {
+      link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    if (font.href) {
+      link.href = font.href;
+    } else {
+      // Remove href for default (local) font
+      link.parentNode && link.parentNode.removeChild(link);
+    }
+
+    // Inject or update a style tag to override typography globally
+    const styleId = 'wt-font-override';
+    let style = document.getElementById(styleId);
+    const css = `:root{--wt-font:${font.stack}} body, .MuiTypography-root{ font-family: var(--wt-font) !important; }`;
+    if (!style) {
+      style = document.createElement('style');
+      style.id = styleId;
+      style.type = 'text/css';
+      style.appendChild(document.createTextNode(css));
+      document.head.appendChild(style);
+    } else {
+      style.textContent = css;
+    }
+
+    // Persist
+    try {
+      localStorage.setItem('wt-font-id', font.id);
+      localStorage.setItem(FONT_FAMILY_KEY, font.stack);
+      if (font.href) localStorage.setItem(FONT_LINK_KEY, font.href); else localStorage.removeItem(FONT_LINK_KEY);
+    } catch {}
+  };
+
+  useEffect(() => {
+    const current = GOOGLE_FONTS.find(f => f.id === selectedFontId) || GOOGLE_FONTS[0];
+    applyFontSelection(current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleExportData = async () => {
     try {
@@ -289,6 +411,48 @@ export default function SettingsPanel({ panelBg, onBack }) {
           </Box>
         </CardContent>
       </Card> 
+      {/* 3) Google Fonts - Sélection de la police principale */}
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Police principale (Google Fonts)
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <FormControl sx={{ minWidth: 260 }}>
+              <InputLabel>Police</InputLabel>
+              <Select
+                label="Police"
+                value={selectedFontId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedFontId(id);
+                  const f = GOOGLE_FONTS.find(x => x.id === id) || GOOGLE_FONTS[0];
+                  applyFontSelection(f);
+                }}
+              >
+                {GOOGLE_FONTS.map(f => (
+                  <MenuItem key={f.id} value={f.id}>
+                    <Box sx={{ fontFamily: f.stack }}>{f.label}</Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="outlined"
+              startIcon={<RestoreIcon />}
+              onClick={() => {
+                setSelectedFontId('default');
+                applyFontSelection(GOOGLE_FONTS[0]);
+              }}
+            >
+              Par défaut
+            </Button>
+          </Box>
+          <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.8 }}>
+            Les titres restent en gras; les commentaires s'affichent en italique.
+          </Typography>
+        </CardContent>
+      </Card>
       <input
         type="file"
         accept="application/json"
@@ -380,6 +544,27 @@ export default function SettingsPanel({ panelBg, onBack }) {
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   )}
+                  {t.id === 'default' && (
+                    <IconButton
+                      size="small"
+                      onClick={e => {
+                        e.stopPropagation();
+                        // Reset only color-related fields; keep current name/activation
+                        updateTheme(t.id, {
+                          events: DEFAULT_THEME.events,
+                          panelColors: DEFAULT_THEME.panelColors,
+                          cardBg: DEFAULT_THEME.cardBg,
+                          ticketBg: DEFAULT_THEME.ticketBg,
+                          text: DEFAULT_THEME.text,
+                          menu: DEFAULT_THEME.menu
+                        });
+                      }}
+                      aria-label="Réinitialiser le thème par défaut"
+                      title="Réinitialiser"
+                    >
+                      <RestoreIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </Box>
               </AccordionSummary>
               <AccordionDetails>
@@ -393,36 +578,36 @@ export default function SettingsPanel({ panelBg, onBack }) {
                 </Box>
 
                 <Typography variant="subtitle1" sx={{ mt: 1, mb: 1 }}>Événements</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))', gap: 1, mb: 2 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(180px, 1fr))' }, gap: 1, mb: 2 }}>
                   {[
                     ['arrival', 'Arrivée'],
                     ['depart', 'Départ'],
                     ['both', 'Arrivée + Départ'],
                     ['done', 'Terminé']
                   ].map(([key, label]) => (
-                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                       <TextField
                         type="color"
                         label={label}
                         value={(t.events && t.events[key]) || '#000000'}
                         onChange={e => updateThemeDeep(t.id, `events.${key}`, e.target.value)}
-                        sx={{ width: 130 }}
+                        sx={{ width: { xs: '100%', sm: 130 } }}
                         InputLabelProps={{ shrink: true }}
                       />
                       <TextField
                         label="HEX"
                         value={(t.events && t.events[key]) || ''}
                         onChange={e => updateThemeDeep(t.id, `events.${key}`, e.target.value)}
-                        sx={{ width: 140 }}
+                        sx={{ width: { xs: '100%', sm: 140 } }}
                       />
                     </Box>
                   ))}
                 </Box>
 
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Panneaux (4)</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 1, mb: 2 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(200px, 1fr))' }, gap: 1, mb: 2 }}>
                   {Array.from({ length: 4 }, (_, i) => (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                       <TextField
                         type="color"
                         label={`Panel ${i + 1}`}
@@ -432,7 +617,7 @@ export default function SettingsPanel({ panelBg, onBack }) {
                           arr[i] = e.target.value;
                           updateTheme(t.id, { panelColors: arr });
                         }}
-                        sx={{ width: 130 }}
+                        sx={{ width: { xs: '100%', sm: 130 } }}
                         InputLabelProps={{ shrink: true }}
                       />
                       <TextField
@@ -443,76 +628,92 @@ export default function SettingsPanel({ panelBg, onBack }) {
                           arr[i] = e.target.value;
                           updateTheme(t.id, { panelColors: arr });
                         }}
-                        sx={{ width: 140 }}
+                        sx={{ width: { xs: '100%', sm: 140 } }}
                       />
                     </Box>
                   ))}
                 </Box>
 
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Fond des cartes</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                   <TextField
                     type="color"
                     label="CARD_BG"
                     value={t.cardBg || '#ffffff'}
                     onChange={e => updateTheme(t.id, { cardBg: e.target.value })}
-                    sx={{ width: 130 }}
+                    sx={{ width: { xs: '100%', sm: 130 } }}
                     InputLabelProps={{ shrink: true }}
                   />
                   <TextField
                     label="HEX"
                     value={t.cardBg || ''}
                     onChange={e => updateTheme(t.id, { cardBg: e.target.value })}
-                    sx={{ width: 140 }}
+                    sx={{ width: { xs: '100%', sm: 140 } }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                  <TextField
+                    type="color"
+                    label="TICKET_BG"
+                    value={t.ticketBg || '#ffffff'}
+                    onChange={e => updateTheme(t.id, { ticketBg: e.target.value })}
+                    sx={{ width: { xs: '100%', sm: 130 } }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    label="HEX"
+                    value={t.ticketBg || ''}
+                    onChange={e => updateTheme(t.id, { ticketBg: e.target.value })}
+                    sx={{ width: { xs: '100%', sm: 140 } }}
                   />
                 </Box>
 
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Couleurs de texte</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 1 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(200px, 1fr))' }, gap: 1 }}>
                   {[
                     ['primary', 'Texte'],
                     ['title', 'Titre'],
                     ['caption', 'Caption']
                   ].map(([key, label]) => (
-                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                       <TextField
                         type="color"
                         label={label}
                         value={(t.text && t.text[key]) || '#000000'}
                         onChange={e => updateThemeDeep(t.id, `text.${key}`, e.target.value)}
-                        sx={{ width: 130 }}
+                        sx={{ width: { xs: '100%', sm: 130 } }}
                         InputLabelProps={{ shrink: true }}
                       />
                       <TextField
                         label="HEX"
                         value={(t.text && t.text[key]) || ''}
                         onChange={e => updateThemeDeep(t.id, `text.${key}`, e.target.value)}
-                        sx={{ width: 140 }}
+                        sx={{ width: { xs: '100%', sm: 140 } }}
                       />
                     </Box>
                   ))}
                 </Box>
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>Menu</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(220px, 1fr))', gap: 1 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(220px, 1fr))' }, gap: 1 }}>
                   {[
                     ['bg', 'Fond du menu'],
                     ['icon', 'Icônes'],
                     ['indicator', 'Cercle']
                   ].map(([key, label]) => (
-                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                       <TextField
                         type="color"
                         label={label}
                         value={(t.menu && t.menu[key]) || '#000000'}
                         onChange={e => updateThemeDeep(t.id, `menu.${key}`, e.target.value)}
-                        sx={{ width: 130 }}
+                        sx={{ width: { xs: '100%', sm: 130 } }}
                         InputLabelProps={{ shrink: true }}
                       />
                       <TextField
                         label="HEX"
                         value={(t.menu && t.menu[key]) || ''}
                         onChange={e => updateThemeDeep(t.id, `menu.${key}`, e.target.value)}
-                        sx={{ width: 140 }}
+                        sx={{ width: { xs: '100%', sm: 140 } }}
                       />
                     </Box>
                   ))}

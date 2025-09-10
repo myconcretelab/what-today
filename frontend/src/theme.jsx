@@ -10,12 +10,13 @@ export const DEFAULT_THEME = {
   id: 'default',
   name: 'Default',
   events: {
-    arrival: '#f7e1d7',
-    depart: '#dedbd2',
-    both: '#edafb8',
-    done: '#4a5759'
+    arrival: '#780000',
+    depart: '#669bbc',
+    both: '#c1121f',
+    done: '#003049'
   },
-  cardBg: '#f5ebe0',
+  cardBg: '#f3f3f3ff',
+  ticketBg: '#ffffff',
   panelColors: ['#b0c4b1', '#4a5759', '#ffa69e', '#aed9e0'],
   text: {
     primary: '#1f2937',
@@ -23,7 +24,7 @@ export const DEFAULT_THEME = {
     caption: '#4b5563'
   },
   menu: {
-    bg: '#f48fb1',
+    bg: '#5b656aff',
     icon: '#ffffff',
     indicator: '#ffffff'
   }

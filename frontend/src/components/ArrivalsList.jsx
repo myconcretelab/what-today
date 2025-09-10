@@ -22,8 +22,6 @@ import dayjs from 'dayjs';
 import {
   sourceColor,
   giteInitial,
-  borderWidth,
-  
 } from '../utils';
 import { useThemeColors } from '../theme.jsx';
 import { fetchComments } from '../services/api';
@@ -156,7 +154,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       {['today', 'tomorrow'].map(key => (
         <Card key={key} sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 700 }}>
+            <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 200 }}>
               {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
             </Typography>
             <List>
@@ -165,14 +163,13 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 const initial = giteInitial(ev.giteId);
               const status = statuses[ev.id]?.done;
               const user = statuses[ev.id]?.user;
-              const bg = colorTheme.events?.[ev.type] || colorTheme.events?.both || '#ffffff';
-              const itemBg = status ? theme.palette.grey[200] : bg;
+              // Event type color to use as left border
+              const typeColor = colorTheme.events?.[ev.type] || colorTheme.events?.both || '#000';
+              // Ticket background now uses theme ticketBg (or grey when done)
+              const itemBg = status ? theme.palette.grey[200] : (colorTheme.ticketBg || '#ffffff');
               const textColor = status
                 ? theme.palette.text.primary
                 : theme.palette.getContrastText(itemBg);
-
-              const bw = borderWidth(ev.type);
-              const brColor = status ? (colorTheme.events?.done || '#000') : (colorTheme.events?.depart || '#000');
               // Use the displayed event date for comment lookup
               const commentKey = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
               const entry = comments[commentKey];
@@ -186,14 +183,14 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                   key={ev.id}
                   sx={{
                     bgcolor: itemBg,
-                      color: textColor,
-                      mb: 1,
-                      px: 2,
-                      py: 1,
-                      border: `${bw}px solid`,
-                      borderColor: brColor,
-                      transition: 'background-color 0.3s, border-color 0.3s'
-                    }}
+                    color: textColor,
+                    mb: 1,
+                    px: 2,
+                    py: 1,
+                    border: 'none',
+                    borderLeft: `8px solid ${typeColor}`,
+                    transition: 'background-color 0.3s, border-color 0.3s'
+                  }}
                   >
                   <ListItemAvatar>
                       <Avatar
@@ -201,7 +198,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                           bgcolor: color,
                           width: 40,
                           height: 40,
-                          border: '1px solid rgba(0,0,0,0.3)',
+                          border: 'none',
                           boxShadow: 0,
                           transition: 'transform 0.2s',
                           '&:hover': { transform: 'scale(1.05)' }
@@ -223,12 +220,17 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       primary={ev.giteNom}
                       secondary={
                         displayedComment ? (
-                          <Typography component="span" variant="caption" display="block" sx={{ color: 'inherit' }}>
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            display="block"
+                            sx={{ color: 'inherit', fontStyle: 'italic' }}
+                          >
                             {displayedComment}
                           </Typography>
                         ) : null
                       }
-                      primaryTypographyProps={{ sx: { color: 'inherit', fontWeight: 700 } }}
+                      primaryTypographyProps={{ sx: { color: 'inherit', fontWeight: 500 } }}
                       secondaryTypographyProps={{ sx: { color: 'inherit' } }}
                       sx={{ mr: 1 }}
                     />
@@ -283,19 +285,19 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
 
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
-          <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 700 }}>Prochains jours</Typography>
+          <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 200 }}>Prochains jours</Typography>
           <List>
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
               const initial = giteInitial(ev.giteId);
-              const bg = colorTheme.events?.[ev.type] || colorTheme.events?.both || '#ffffff';
+              const typeColor = colorTheme.events?.[ev.type] || colorTheme.events?.both || '#000';
               const status = statuses[ev.id]?.done;
               const user = statuses[ev.id]?.user;
-              const itemBg = status ? theme.palette.grey[200] : bg;
+              const itemBg = status ? theme.palette.grey[200] : (colorTheme.ticketBg || '#ffffff');
               const textColor = status
                 ? theme.palette.text.primary
                 : theme.palette.getContrastText(itemBg);
-              const bw = borderWidth(ev.type);
+              
               // Use the displayed event date for comment lookup
               const commentKey = `${ev.giteId}_${ev.date.format('YYYY-MM-DD')}`;
               const entry = comments[commentKey];
@@ -314,7 +316,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                     px: 2,
                     py: 1,
                     border: 'none',
-                    transition: 'background-color 0.3s'
+                    borderLeft: `10px solid ${typeColor}`,
+                    transition: 'background-color 0.3s, border-color 0.3s'
                   }}
                 >
                   <ListItemAvatar>
@@ -323,6 +326,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                         bgcolor: color,
                         width: 40,
                         height: 40,
+                        border: 'none',
                         boxShadow: 0,
                         transition: 'transform 0.2s',
                         '&:hover': { transform: 'scale(1.05)' }
@@ -375,18 +379,12 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                         )}
                       </>
                     }
-                    primaryTypographyProps={{ sx: { color: 'inherit', fontWeight: 600 } }}
+                    primaryTypographyProps={{ sx: { color: 'grey', fontWeight: 500 } }}
                     secondaryTypographyProps={{ sx: { color: 'inherit' } }}
                     sx={{ mr: 1 }}
                   />
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Switch
-                        size="small"
-                        checked={Boolean(status)}
-                        onChange={() => onStatusChange(ev.id, !status)}
-                      />
-                    </Box>
+                    {/* Switch removed for "Prochains jours" */}
                     {status && user && (
                       <Chip label={user} size="small" variant="outlined" sx={{ mt: 0.5 }} />
                     )}
