@@ -9,7 +9,6 @@ import {
   ListItemText,
   Card,
   CardContent,
-  Switch,
   Chip,
   IconButton
 } from '@mui/material';
@@ -18,12 +17,14 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapVert from '@mui/icons-material/ImportExport';
 import { useTheme } from '@mui/material/styles';
+import { keyframes } from '@mui/system';
 import dayjs from 'dayjs';
 import {
   sourceColor,
   giteInitial,
 } from '../utils';
 import { useThemeColors } from '../theme.jsx';
+import airbnbLogo from '../assets/logos/airbnb-svgrepo-com.svg';
 import { fetchComments } from '../services/api';
 
 /**
@@ -36,6 +37,23 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
   const theme = useTheme();
   const [comments, setComments] = React.useState({});
   const { theme: colorTheme } = useThemeColors();
+  const [flipping, setFlipping] = React.useState({});
+
+  const flipAnim = keyframes`
+    from { transform: rotateY(0deg); }
+    to { transform: rotateY(360deg); }
+  `;
+
+  const triggerFlip = id => {
+    setFlipping(prev => ({ ...prev, [id]: true }));
+    setTimeout(() => {
+      setFlipping(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }, 650);
+  };
 
   React.useEffect(() => {
     let timeoutId = null;
@@ -194,6 +212,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                   >
                   <ListItemAvatar>
                       <Avatar
+                        onClick={() => { onStatusChange(ev.id, !status); triggerFlip(ev.id); }}
                         sx={{
                           bgcolor: color,
                           width: 40,
@@ -201,7 +220,9 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                           border: 'none',
                           boxShadow: 0,
                           transition: 'transform 0.2s',
-                          '&:hover': { transform: 'scale(1.05)' }
+                          cursor: 'pointer',
+                          '&:hover': { transform: 'scale(1.05)' },
+                          animation: flipping[ev.id] ? `${flipAnim} 0.6s ease-in-out` : 'none'
                         }}
                       >
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
@@ -235,17 +256,24 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       sx={{ mr: 1 }}
                     />
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Switch
-                          size="small"
-                          checked={Boolean(status)}
-                          onChange={() => onStatusChange(ev.id, !status)}
-                        />
-                      </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }} />
                       {status && user && (
                         <Chip label={user} size="small" variant="outlined" sx={{ mt: 0.5 }} />
                       )}
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {ev.airbnbUrl && (
+                          <IconButton
+                            component="a"
+                            href={ev.airbnbUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="small"
+                            sx={{ color: textColor }}
+                            aria-label="Ouvrir la réservation Airbnb"
+                          >
+                            <img src={airbnbLogo} alt="Airbnb" style={{ width: 18, height: 18 }} />
+                          </IconButton>
+                        )}
                         {phone && (
                           <IconButton
                             component="a"
@@ -389,6 +417,19 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                       <Chip label={user} size="small" variant="outlined" sx={{ mt: 0.5 }} />
                     )}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {ev.airbnbUrl && (
+                        <IconButton
+                          component="a"
+                          href={ev.airbnbUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          size="small"
+                          sx={{ color: textColor }}
+                          aria-label="Ouvrir la réservation Airbnb"
+                        >
+                          <img src={airbnbLogo} alt="Airbnb" style={{ width: 18, height: 18 }} />
+                        </IconButton>
+                      )}
                       {phone && (
                         <IconButton
                           component="a"

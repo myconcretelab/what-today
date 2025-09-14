@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Tooltip, Avatar, Card, CardContent, useMediaQuery } from '@mui/material';
+import { Box, Typography, Avatar, Card, CardContent, useMediaQuery, Tooltip } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapVert from '@mui/icons-material/ImportExport';
@@ -20,14 +20,23 @@ const shake = keyframes`
   100% { transform: translateX(0) rotate(0); }
 `;
 
+// Animation de flip horizontal complet
+const flipAnim = keyframes`
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+`;
+
 /**
  * Barre de calendrier sur 7 jours.
  * Les réservations sont représentées par des pastilles colorées
  * (une couleur par source). Tooltip au survol pour voir le détail.
 */
-function CalendarBar({ bookings, errors }) {
+function CalendarBar({ bookings, errors, statuses = {}, onStatusChange = () => {} }) {
   const { theme: colorTheme } = useThemeColors();
   const isMobile = useMediaQuery(theme => theme.breakpoints.down("sm")); // Détection mobile/tablette
+  const today = dayjs().startOf('day');
+  const tomorrow = today.add(1, 'day');
+  const [flipping, setFlipping] = React.useState({});
   // Construction de la structure { date -> [events] }
   const initialEvents = bookings.flatMap(ev => {
     const debut = dayjs(ev.debut);
@@ -96,34 +105,53 @@ function CalendarBar({ bookings, errors }) {
                     : ev.type === 'depart'
                       ? ArrowDownwardIcon
                       : SwapVert;
+                  const dateStr = ev.date.format('YYYY-MM-DD');
+                  const eventId = ev.type === 'both'
+                    ? `${ev.giteId}_${dateStr}_both`
+                    : `${ev.giteId}_${dateStr}_${ev.type}_${ev.source}`;
+                  const isDone = Boolean(statuses[eventId]?.done);
+                  const canToggle = ev.date.isSame(today, 'day') || ev.date.isSame(tomorrow, 'day');
+                  const handleClick = () => {
+                    if (!canToggle) return;
+                    onStatusChange(eventId, !isDone);
+                    // trigger flip animation per id
+                    setFlipping(prev => ({ ...prev, [eventId]: true }));
+                    setTimeout(() => {
+                      setFlipping(prev => {
+                        const next = { ...prev };
+                        delete next[eventId];
+                        return next;
+                      });
+                    }, 650);
+                  };
                   return (
-                    <Tooltip
+                    <Avatar
                       key={idx}
-                      title={`${ev.giteNom} - ${ev.source}`}
-                      arrow
+                      onClick={handleClick}
+                      sx={{
+                        bgcolor: color,
+                        width: 40,
+                        height: 40,
+                        border: 'none',
+                        boxShadow: 0,
+                        transition: 'transform 0.2s',
+                        cursor: canToggle ? 'pointer' : 'default',
+                        '&:hover': { transform: canToggle ? 'scale(1.1)' : 'none' },
+                        animation: flipping[eventId]
+                          ? `${flipAnim} 0.6s ease-in-out`
+                          : (dayjs(ev.date).isSame(dayjs(), 'day') ? `${shake} 2.5s infinite` : 'none'),
+                        opacity: isDone ? 0.6 : 1
+                      }}
                     >
-                      <Avatar
-                        sx={{
-                          bgcolor: color,
-                          width: 40,
-                          height: 40,
-                          border: 'none',
-                          boxShadow: 0,
-                          transition: 'transform 0.2s',
-                          '&:hover': { transform: 'scale(1.1)' },
-                          animation: dayjs(ev.date).isSame(dayjs(), 'day') ? `${shake} 2.5s infinite` : 'none'
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
-                          <Typography sx={{ fontSize: 12, fontWeight: 700, height: 14 }}>
-                            {initial}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mt: '2px', height: 14 }}>
-                            <ArrowIcon sx={{ fontSize: 16, lineHeight: 1 }} />
-                          </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, height: 14 }}>
+                          {initial}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mt: '2px', height: 14 }}>
+                          <ArrowIcon sx={{ fontSize: 16, lineHeight: 1 }} />
                         </Box>
-                      </Avatar>
-                    </Tooltip>
+                      </Box>
+                    </Avatar>
                   );
                 })}
                 {events.length > 3 && (

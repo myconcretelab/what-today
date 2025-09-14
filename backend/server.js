@@ -464,21 +464,44 @@ function dedupeReservations(list) {
 function preferReservation(a, b) {
   const aPref = isReservedOrBooked(a.resume);
   const bPref = isReservedOrBooked(b.resume);
-  if (aPref && !bPref) return a;
-  if (!aPref && bPref) return b;
-  // Sinon, choisir celle qui commence le plus tôt (couvre la période la plus longue)
-  const aStart = dayjs(a.debut, 'YYYY-MM-DD');
-  const bStart = dayjs(b.debut, 'YYYY-MM-DD');
-  if (aStart.isValid() && bStart.isValid()) {
-    return aStart.isBefore(bStart) ? a : b;
+  let winner;
+  if (aPref && !bPref) winner = a;
+  else if (!aPref && bPref) winner = b;
+  else {
+    // Sinon, choisir celle qui commence le plus tôt (couvre la période la plus longue)
+    const aStart = dayjs(a.debut, 'YYYY-MM-DD');
+    const bStart = dayjs(b.debut, 'YYYY-MM-DD');
+    if (aStart.isValid() && bStart.isValid()) {
+      winner = aStart.isBefore(bStart) ? a : b;
+    } else {
+      winner = a; // fallback stable
+    }
   }
-  return a; // fallback stable
+
+  // Fusion légère: conserver un éventuel airbnbUrl si présent sur l'un des deux
+  const merged = { ...winner };
+  if (!merged.airbnbUrl && a.airbnbUrl) merged.airbnbUrl = a.airbnbUrl;
+  if (!merged.airbnbUrl && b.airbnbUrl) merged.airbnbUrl = b.airbnbUrl;
+  return merged;
 }
 
 function isReservedOrBooked(summary) {
   if (!summary) return false;
   const s = String(summary).trim().toUpperCase();
   return s === 'RESERVED' || s === 'BOOKED';
+}
+
+// Extrait l'URL de réservation Airbnb depuis la description iCal, si présente
+function extractAirbnbUrl(description) {
+  if (!description) return '';
+  const text = String(description);
+  // Format typique: "DESCRIPTION:Reservation URL: https://www.airbnb.com/hosting/reservations/details/..."
+  const m = text.match(/Reservation URL:\s*(https?:\/\/\S+)/i);
+  if (m && m[1]) return m[1].trim();
+  // Repli: capturer tout lien airbnb dans la description
+  const m2 = text.match(/https?:\/\/(?:www\.)?airbnb\.[^\s\n]+/i);
+  if (m2 && m2[0]) return m2[0].trim();
+  return '';
 }
 
 // Stockage en mémoire des réservations et des erreurs
@@ -527,6 +550,10 @@ async function chargerCalendriers() {
               continue;
             }
 
+            // Tentative d'extraction d'une URL Airbnb depuis la description iCal
+            const airbnbUrl =
+              typeSource === 'Airbnb' ? extractAirbnbUrl(ev.description) : '';
+
             reservations.push({
               giteId: gite.id,
               giteNom: gite.nom,
@@ -534,7 +561,8 @@ async function chargerCalendriers() {
               source: typeSource,
               debut: formatIcalDate(ev.start), // Date d'arrivée, fiable !
               fin: formatIcalDate(ev.end),     // Date de départ (le client part ce matin-là)
-              resume: ev.summary || ''
+              resume: ev.summary || '',
+              airbnbUrl: airbnbUrl || ''
             });
             // console.log("DEBUG ev.start", ev.start, ev.start.toISOString());
           }

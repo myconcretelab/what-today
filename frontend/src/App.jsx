@@ -135,7 +135,12 @@ function InnerApp() {
                 pl: { xs: 1, sm: 2 }
               }}
             >
-              <CalendarBar bookings={data.reservations} errors={data.erreurs} />
+              <CalendarBar
+                bookings={data.reservations}
+                errors={data.erreurs}
+                statuses={statuses}
+                onStatusChange={handleStatusChange}
+              />
               <Legend
                 bookings={data.reservations}
                 selectedUser={selectedUser}
