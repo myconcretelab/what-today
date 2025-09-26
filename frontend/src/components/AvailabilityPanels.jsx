@@ -372,13 +372,20 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
           onClose={handleClosePicker}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         >
-          <DateRange
-            ranges={[
-              { startDate: arrival.toDate(), endDate: departure.toDate(), key: 'selection' }
-            ]}
-            onChange={item => handleRangeChange(item.selection)}
-            dayContentRenderer={renderDayContent}
-          />
+          <Box sx={{ p: 1 }}>
+            <DateRange
+              ranges={[
+                { startDate: arrival.toDate(), endDate: departure.toDate(), key: 'selection' }
+              ]}
+              onChange={item => handleRangeChange(item.selection)}
+              dayContentRenderer={renderDayContent}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button variant="contained" size="small" onClick={handleClosePicker}>
+                ok
+              </Button>
+            </Box>
+          </Box>
         </Popover>
         <Chip label={`${nightCount} nuits`} size="small" sx={{ bgcolor: '#f48fb1', color: '#fff' }} />
       </Box>
