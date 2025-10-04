@@ -371,6 +371,7 @@ export function AvailabilityPeriodPanel({ onReserve, onBack, panelBg }) {
           anchorEl={anchorEl}
           onClose={handleClosePicker}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          disableRestoreFocus
         >
           <Box sx={{ p: 1 }}>
             <DateRange
