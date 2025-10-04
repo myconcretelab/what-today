@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[update] Pulling latest changes..."
+git pull
+
+echo "[update] Building frontend..."
+pushd "frontend" >/dev/null
+npm run build
+popd >/dev/null
+
+echo "[update] Done."
