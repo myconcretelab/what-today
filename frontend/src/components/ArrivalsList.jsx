@@ -175,7 +175,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
             <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 200 }}>
               {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
             </Typography>
-            <List>
+            <List sx={{ px: 0 }}>
               {groupes[key].map(ev => {
                 const color = sourceColor(ev.source);
                 const initial = giteInitial(ev.giteId);
@@ -200,6 +200,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 <ListItem
                   key={ev.id}
                   sx={{
+                    width: '100%',
                     bgcolor: itemBg,
                     color: textColor,
                     mb: 1,
@@ -314,7 +315,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 200 }}>Prochains jours</Typography>
-          <List>
+          <List sx={{ px: 0 }}>
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
               const initial = giteInitial(ev.giteId);
@@ -338,6 +339,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                 <ListItem
                   key={ev.id}
                   sx={{
+                    width: '100%',
                     bgcolor: itemBg,
                     color: textColor,
                     mb: 1,
