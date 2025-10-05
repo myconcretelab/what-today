@@ -97,7 +97,7 @@ function CalendarBar({ bookings, errors, statuses = {}, onStatusChange = () => {
                   mt: 0.5
                 }}
               >
-                {events.slice(0, 3).map((ev, idx) => {
+                {events.slice(0, 4).map((ev, idx) => {
                   const color = sourceColor(ev.source);
                   const initial = giteInitial(ev.giteId);
                   const ArrowIcon = ev.type === 'arrival'
@@ -154,9 +154,9 @@ function CalendarBar({ bookings, errors, statuses = {}, onStatusChange = () => {
                     </Avatar>
                   );
                 })}
-                {events.length > 3 && (
+                {events.length > 4 && (
                   <Avatar sx={{ width: 30, height: 30, fontSize: 12, border: 'none' }}>
-                    +{events.length - 3}
+                    +{events.length - 4}
                   </Avatar>
                 )}
               </Box>
