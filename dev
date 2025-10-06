@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+backend_pid=""
+frontend_pid=""
+
+# Ensure both servers stop when the script exits or is interrupted.
+cleanup() {
+  local exit_code=$?
+  trap - EXIT INT TERM
+  if [[ -n "${backend_pid:-}" ]] && kill -0 "$backend_pid" >/dev/null 2>&1; then
+    kill "$backend_pid" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${frontend_pid:-}" ]] && kill -0 "$frontend_pid" >/dev/null 2>&1; then
+    kill "$frontend_pid" >/dev/null 2>&1 || true
+  fi
+  wait "$backend_pid" "$frontend_pid" >/dev/null 2>&1 || true
+  exit "$exit_code"
+}
+trap cleanup EXIT INT TERM
+
+echo "Starting backend (npm start)..."
+(
+  cd "$ROOT_DIR/backend"
+  npm start
+) &
+backend_pid=$!
+
+echo "Starting frontend (npm run dev)..."
+(
+  cd "$ROOT_DIR/frontend"
+  npm run dev
+) &
+frontend_pid=$!
+
+wait -n "$backend_pid" "$frontend_pid"
+exit_code=$?
+exit "$exit_code"
