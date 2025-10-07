@@ -1,10 +1,16 @@
 import React from 'react';
-import { Box, Typography, Select, MenuItem, Chip } from '@mui/material';
+import { Box, Select, MenuItem, Chip, Switch, FormControlLabel } from '@mui/material';
 import { lighten, darken } from '@mui/material/styles';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { sourceColor, TRASH_COLORS } from '../utils';
 
-function Legend({ bookings, selectedUser, onUserChange }) {
+function Legend({
+  bookings,
+  selectedUser,
+  onUserChange,
+  periodEnabled = true,
+  onPeriodToggle = () => {}
+}) {
   const sources = Array.from(new Set(bookings.map(b => b.source)));
 
   // Compute text/icon color based on background luminance
@@ -48,7 +54,15 @@ function Legend({ bookings, selectedUser, onUserChange }) {
         }}
       >
         {/* Utilisateurs */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "center", justifyContent: "center"  }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            width: '100%',
+            flexWrap: { xs: 'wrap', sm: 'nowrap' }
+          }}
+        >
           <Select
             size="small"
             value={selectedUser}
@@ -57,6 +71,17 @@ function Legend({ bookings, selectedUser, onUserChange }) {
             <MenuItem value="Soaz">Soaz</MenuItem>
             <MenuItem value="Seb">Seb</MenuItem>
           </Select>
+          <FormControlLabel
+            control={(
+              <Switch
+                size="small"
+                checked={periodEnabled}
+                onChange={(event, checked) => onPeriodToggle(checked)}
+              />
+            )}
+            label="Période"
+            sx={{ m: 0, ml: { xs: 0, sm: 'auto' } }}
+          />
         </Box>
 
         {/* Sources */}

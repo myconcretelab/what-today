@@ -5,6 +5,58 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 backend_pid=""
 frontend_pid=""
 
+wait_for_frontend() {
+  local url="http://localhost:5173/"
+  local attempts=30
+  local delay=1
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl not found; skipping automatic browser launch." >&2
+    return 1
+  fi
+
+  for ((i = 0; i < attempts; i++)); do
+    if ! kill -0 "$backend_pid" "$frontend_pid" >/dev/null 2>&1; then
+      echo "Servers stopped before the frontend became ready; not opening browser." >&2
+      return 1
+    fi
+
+    if curl -Ifs "$url" >/dev/null 2>&1; then
+      echo "Opening $url in default browser..."
+      if command -v open >/dev/null 2>&1; then
+        open "$url" >/dev/null 2>&1 || true
+      elif command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$url" >/dev/null 2>&1 || true
+      elif command -v start >/dev/null 2>&1; then
+        start "$url" >/dev/null 2>&1 || true
+      else
+        echo "No suitable command found to open the browser." >&2
+        return 1
+      fi
+      return 0
+    fi
+
+    sleep "$delay"
+  done
+
+  echo "Timed out waiting for frontend to be available at $url." >&2
+  return 1
+}
+
+wait_for_any() {
+  while true; do
+    if [[ -n "${backend_pid:-}" ]] && ! kill -0 "$backend_pid" >/dev/null 2>&1; then
+      wait "$backend_pid"
+      return $?
+    fi
+    if [[ -n "${frontend_pid:-}" ]] && ! kill -0 "$frontend_pid" >/dev/null 2>&1; then
+      wait "$frontend_pid"
+      return $?
+    fi
+    sleep 1
+  done
+}
+
 # Ensure both servers stop when the script exits or is interrupted.
 cleanup() {
   local exit_code=$?
@@ -23,17 +75,19 @@ trap cleanup EXIT INT TERM
 echo "Starting backend (npm start)..."
 (
   cd "$ROOT_DIR/backend"
-  npm start
+  exec npm start
 ) &
 backend_pid=$!
 
 echo "Starting frontend (npm run dev)..."
 (
   cd "$ROOT_DIR/frontend"
-  npm run dev
+  exec npm run dev
 ) &
 frontend_pid=$!
 
-wait -n "$backend_pid" "$frontend_pid"
+wait_for_frontend || true
+
+wait_for_any
 exit_code=$?
 exit "$exit_code"
