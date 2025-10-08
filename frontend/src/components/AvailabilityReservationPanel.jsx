@@ -80,11 +80,11 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
         </Typography>
       )}
 
-      {/* Section 1: Collect contact information and update Google Sheets/Airbnb */}
+      {/* Section 1: Split into information capture and action panels */}
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 1 }}>
-            1 - Google & Airbnb
+            1 - Enter les informations
           </Typography>
           <TextField
             label="Téléphone"
@@ -180,6 +180,14 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
               </TextField>
             </Box>
           )}
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            2 - Enregistrer Google & Bloquer Airbnb
+          </Typography>
           <TextField
             multiline
             rows={4}
@@ -188,7 +196,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
             InputProps={{ readOnly: true }}
             sx={{ mb: 1 }}
           />
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="contained"
               size="small"
@@ -219,7 +227,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 1 }}>
-            2 - Envoyer un SMS
+            3 - Envoyer un SMS de confirmation
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1 }}>
             {texts.map((t, idx) => (
