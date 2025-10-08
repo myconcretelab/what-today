@@ -12,11 +12,9 @@ import {
 import { Box, IconButton } from '@mui/material';
 import Legend from './components/Legend';
 import PullToRefresh from './components/PullToRefresh';
-import {
-  AvailabilityProvider,
-  AvailabilityPeriodPanel,
-  AvailabilityReservationPanel
-} from './components/AvailabilityPanels';
+import { AvailabilityProvider } from './components/AvailabilityProvider.jsx';
+import { AvailabilityPeriodPanel } from './components/AvailabilityPeriodPanel.jsx';
+import { AvailabilityReservationPanel } from './components/AvailabilityReservationPanel.jsx';
 import SettingsPanel from './components/SettingsPanel';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
