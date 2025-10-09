@@ -55,11 +55,18 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
     selectedTexts,
     setSelectedTexts,
     savedForRange,
-    nightCount
+    nightCount,
+    occupancyLimits
   } = useAvailabilityContext();
   const theme = useTheme();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
   const { theme: colorTheme } = useThemeColors();
+  const defaultOccupancy = { adults: 15, children: 10 };
+  const giteOccupancy = selectedGite ? occupancyLimits[selectedGite.id] : null;
+  const maxAdults = giteOccupancy?.adults ?? defaultOccupancy.adults;
+  const maxChildren = giteOccupancy?.children ?? defaultOccupancy.children;
+  const adultOptions = Array.from({ length: maxAdults + 1 }, (_, i) => i);
+  const childOptions = Array.from({ length: maxChildren + 1 }, (_, i) => i);
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
@@ -101,33 +108,34 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
             sx={{ mb: 1 }}
           />
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-            <TextField
-              select
-              label="Adultes"
-              value={adultCount}
-              onChange={e => setAdultCount(Number(e.target.value))}
-              sx={{ minWidth: 140, flex: { xs: '1 1 140px', sm: '0 0 auto' } }}
-            >
-              {Array.from({ length: 16 }, (_, i) => (
-                <MenuItem key={i} value={i}>
-                  {i}
+          <TextField
+            select
+            label="Adultes"
+            value={adultCount}
+            onChange={e => setAdultCount(Number(e.target.value))}
+            sx={{ minWidth: 140, flex: { xs: '1 1 140px', sm: '0 0 auto' } }}
+          >
+              {adultOptions.map(option => (
+                <MenuItem key={option} value={option}>
+                  {option}
                 </MenuItem>
               ))}
-            </TextField>
-            <TextField
-              select
-              label="Enfants"
-              value={childCount}
-              onChange={e => setChildCount(Number(e.target.value))}
-              sx={{ minWidth: 140, flex: { xs: '1 1 140px', sm: '0 0 auto' } }}
-            >
-              {Array.from({ length: 11 }, (_, i) => (
-                <MenuItem key={i} value={i}>
-                  {i}
+          </TextField>
+          <TextField
+            select
+            label="Enfants"
+            value={childCount}
+            onChange={e => setChildCount(Number(e.target.value))}
+            disabled={maxChildren === 0}
+            sx={{ minWidth: 140, flex: { xs: '1 1 140px', sm: '0 0 auto' } }}
+          >
+              {childOptions.map(option => (
+                <MenuItem key={option} value={option}>
+                  {option}
                 </MenuItem>
               ))}
-            </TextField>
-          </Box>
+          </TextField>
+        </Box>
           <TextField
             select
             label="Prix/nuit"

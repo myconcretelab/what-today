@@ -32,6 +32,13 @@ const GITE_LINKS = {
   edmond: 'https://www.airbnb.fr/multicalendar/43504621'
 };
 
+const GITE_OCCUPANCY_LIMITS = {
+  phonsine: { adults: 4, children: 2 },
+  gree: { adults: 4, children: 2 },
+  edmond: { adults: 2, children: 0 },
+  liberte: { adults: 15, children: 10 }
+};
+
 dayjs.extend(isSameOrAfter);
 dayjs.locale('fr');
 
@@ -117,6 +124,14 @@ export function AvailabilityProvider({ bookings, children }) {
       setSelectedPrice('');
     }
   }, [selectedGite, prices]);
+
+  useEffect(() => {
+    if (!selectedGite) return;
+    const limits = GITE_OCCUPANCY_LIMITS[selectedGite.id];
+    if (!limits) return;
+    setAdultCount(prev => Math.min(prev, limits.adults));
+    setChildCount(prev => Math.min(prev, limits.children));
+  }, [selectedGite]);
 
   const handlePhoneChange = e => {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -300,7 +315,8 @@ export function AvailabilityProvider({ bookings, children }) {
         selectedTexts,
         setSelectedTexts,
         savedForRange,
-        nightCount
+        nightCount,
+        occupancyLimits: GITE_OCCUPANCY_LIMITS
       }}
     >
       {children}
