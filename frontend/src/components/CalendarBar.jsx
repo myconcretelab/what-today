@@ -52,8 +52,7 @@ function CalendarBar({
   bookings,
   errors,
   statuses = {},
-  onStatusChange = () => {},
-  showPeriod = true
+  onStatusChange = () => {}
 }) {
   const { theme: colorTheme } = useThemeColors();
   const isMobile = useMediaQuery(theme => theme.breakpoints.down("sm")); // Détection mobile/tablette
@@ -98,9 +97,6 @@ function CalendarBar({
   const baseUnit = 100 / dayCount;
 
   const rangeEnd = today.add(lastIndex, 'day');
-  const todayValue = today.valueOf();
-  const rangeEndValue = rangeEnd.valueOf();
-
   const giteNameMap = React.useMemo(() => {
     const map = new Map(GITES.map(g => [g.id, g.name]));
     bookings.forEach(b => {
@@ -138,31 +134,6 @@ function CalendarBar({
     map.forEach(list => list.sort((a, b) => a.start.valueOf() - b.start.valueOf()));
     return map;
   }, [bookings]);
-
-  const eventsByDay = React.useMemo(() => {
-    const map = new Map();
-    events.forEach(ev => {
-      if (ev.date.isBefore(today, 'day') || ev.date.isAfter(rangeEnd, 'day')) {
-        return;
-      }
-      const key = ev.date.format('YYYY-MM-DD');
-      const list = map.get(key) || [];
-      list.push(ev);
-      map.set(key, list);
-    });
-    map.forEach(list => {
-      list.sort((a, b) => {
-        const typeOrder = { arrival: 0, both: 1, depart: 2 };
-        if (a.type !== b.type) {
-          return (typeOrder[a.type] || 0) - (typeOrder[b.type] || 0);
-        }
-        const nameA = giteNameMap.get(a.giteId) || a.giteId;
-        const nameB = giteNameMap.get(b.giteId) || b.giteId;
-        return nameA.localeCompare(nameB);
-      });
-    });
-    return map;
-  }, [events, todayValue, rangeEndValue, giteNameMap]);
 
   const renderAvatar = (event, eventId) => {
     const color = sourceColor(event.source);
@@ -347,63 +318,12 @@ function CalendarBar({
     </>
   );
 
-  const renderSimpleContent = () => (
-    <>
-      {renderDayHeader()}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'stretch',
-          borderTop: '1px solid #ededed'
-        }}
-      >
-        {days.map((date, idx) => {
-          const dateKey = date.format('YYYY-MM-DD');
-          const dayEvents = eventsByDay.get(dateKey) || [];
-          const borderRight = idx !== days.length - 1 ? '1px solid #f0f0f0' : 'none';
-          return (
-            <Box
-              key={dateKey}
-              sx={{
-                flex: 1,
-                borderRight,
-                py: GITE_ROW_VERTICAL_PADDING,
-                minHeight: computeRowMinHeight,
-                display: 'flex',
-                justifyContent: 'center'
-              }}
-            >
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                {dayEvents.map(event => {
-                  const eventId = buildEventId(event);
-                  const avatarNode = renderAvatar(event, eventId);
-                  const giteName = giteNameMap.get(event.giteId) || event.giteId;
-                  const typeLabel = event.type === 'arrival'
-                    ? 'Arrivée'
-                    : event.type === 'depart'
-                      ? 'Départ'
-                      : 'Arrivée + départ';
-                  const tooltipTitle = `${giteName} · ${typeLabel}`;
-                  return (
-                    <Tooltip key={eventId} title={`${tooltipTitle} (${event.source})`}>
-                      {avatarNode}
-                    </Tooltip>
-                  );
-                })}
-              </Box>
-            </Box>
-          );
-        })}
-      </Box>
-    </>
-  );
-
   return (
     <Card sx={{ mb: 3, pb: 0, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
       <CardContent sx={{ p: 1 }}>
         <Box sx={{ width: '100%', overflowX: 'hidden' }}>
           <Box sx={{ width: '100%' }}>
-            {showPeriod ? renderPeriodContent() : renderSimpleContent()}
+            {renderPeriodContent()}
             {errors.length > 0 && (
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                 <Tooltip title={`Sources indisponibles: ${errors.join(', ')}`}>

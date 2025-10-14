@@ -1,18 +1,13 @@
 import React from 'react';
-import { Box, Select, MenuItem, Chip, Switch, FormControlLabel } from '@mui/material';
+import { Box, Select, MenuItem, Chip } from '@mui/material';
 import { lighten, darken } from '@mui/material/styles';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { sourceColor, TRASH_COLORS } from '../utils';
+import { TRASH_COLORS } from '../utils';
 
 function Legend({
-  bookings,
   selectedUser,
-  onUserChange,
-  periodEnabled = true,
-  onPeriodToggle = () => {}
+  onUserChange
 }) {
-  const sources = Array.from(new Set(bookings.map(b => b.source)));
-
   // Compute text/icon color based on background luminance
   function getContrastingTextColor(bgColor) {
     // Expect hex like #rrggbb
@@ -48,7 +43,7 @@ function Legend({
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           gap: 2,
           alignItems: 'start'
         }}
@@ -71,51 +66,10 @@ function Legend({
             <MenuItem value="Soaz">Soaz</MenuItem>
             <MenuItem value="Seb">Seb</MenuItem>
           </Select>
-          <FormControlLabel
-            control={(
-              <Switch
-                size="small"
-                checked={periodEnabled}
-                onChange={(event, checked) => onPeriodToggle(checked)}
-              />
-            )}
-            label="Période"
-            sx={{ m: 0, ml: { xs: 0, sm: 'auto' } }}
-          />
         </Box>
-
-        {/* Sources */}
-        
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "center", justifyContent: "center" }}>
-          {/*
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 1
-            }}
-          >
-            {sources.map(type => (
-              <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    bgcolor: sourceColor(type),
-                    borderRadius: '50%',
-                    border: '1px solid rgba(0,0,0,0.3)'
-                  }}
-                />
-                <Typography variant="caption">{type}</Typography>
-              </Box>
-            ))}
-          </Box>
-           */}
-        </Box>
-       
 
         {/* Poubelles */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5,  alignItems: "flex-end", justifyContent: "center"  }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end', justifyContent: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Chip
               icon={<DeleteOutlineIcon />}

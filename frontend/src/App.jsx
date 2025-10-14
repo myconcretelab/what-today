@@ -32,17 +32,9 @@ function InnerApp() {
   const [data, setData] = useState({ reservations: [], erreurs: [] });
   const [statuses, setStatuses] = useState({});
   const USER_KEY = 'wt-user';
-  const PERIOD_KEY = 'wt-period-enabled';
   const [selectedUser, setSelectedUser] = useState(
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
-  const [showPeriodView, setShowPeriodView] = useState(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    const storedValue = window.localStorage.getItem(PERIOD_KEY);
-    return storedValue === null ? true : storedValue === 'true';
-  });
   const [panel, setPanel] = useState(0);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -96,13 +88,6 @@ function InnerApp() {
     return refreshCalendars().then(() => loadData());
   };
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(PERIOD_KEY, showPeriodView ? 'true' : 'false');
-  }, [PERIOD_KEY, showPeriodView]);
-
   if (!auth) return <Login onLogin={handleLogin} />;
   if (loading) return <Loader />;
   const panelBg = (theme.panelColors && theme.panelColors[panel]) || (theme.panelColors && theme.panelColors[0]) || '#ffffff';
@@ -153,17 +138,13 @@ function InnerApp() {
                 errors={data.erreurs}
                 statuses={statuses}
                 onStatusChange={handleStatusChange}
-                showPeriod={showPeriodView}
               />
               <Legend
-                bookings={data.reservations}
                 selectedUser={selectedUser}
                 onUserChange={user => {
                   setSelectedUser(user);
                   localStorage.setItem(USER_KEY, user);
                 }}
-                periodEnabled={showPeriodView}
-                onPeriodToggle={value => setShowPeriodView(value)}
               />
               <ArrivalsList
                 bookings={data.reservations}
