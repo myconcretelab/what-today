@@ -1,13 +1,25 @@
-import React from 'react';
-import { Box, Select, MenuItem, Chip } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Select, MenuItem, Chip, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { lighten, darken } from '@mui/material/styles';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import { TRASH_COLORS } from '../utils';
 
 function Legend({
   selectedUser,
-  onUserChange
+  onUserChange,
+  onRefresh
 }) {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshClick = () => {
+    if (!onRefresh || refreshing) {
+      return;
+    }
+    setRefreshing(true);
+    Promise.resolve(onRefresh()).finally(() => setRefreshing(false));
+  };
+
   // Compute text/icon color based on background luminance
   function getContrastingTextColor(bgColor) {
     // Expect hex like #rrggbb
@@ -66,6 +78,33 @@ function Legend({
             <MenuItem value="Soaz">Soaz</MenuItem>
             <MenuItem value="Seb">Seb</MenuItem>
           </Select>
+          <Tooltip title="Rafraîchir les données">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleRefreshClick}
+                disabled={refreshing}
+                sx={{
+                  color: 'primary.main',
+                  border: '1px solid',
+                  borderColor: 'primary.light',
+                  bgcolor: 'background.paper',
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' },
+                  '&.Mui-disabled': {
+                    color: 'text.disabled',
+                    borderColor: 'divider'
+                  }
+                }}
+              >
+                {refreshing ? (
+                  <CircularProgress size={16} thickness={5} />
+                ) : (
+                  <RefreshRoundedIcon fontSize="inherit" />
+                )}
+              </IconButton>
+            </span>
+          </Tooltip>
         </Box>
 
         {/* Poubelles */}

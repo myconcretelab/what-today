@@ -11,7 +11,6 @@ import {
 } from './services/api';
 import { Box, IconButton } from '@mui/material';
 import Legend from './components/Legend';
-import PullToRefresh from './components/PullToRefresh';
 import { AvailabilityProvider } from './components/AvailabilityProvider.jsx';
 import { AvailabilityPeriodPanel } from './components/AvailabilityPeriodPanel.jsx';
 import { AvailabilityReservationPanel } from './components/AvailabilityReservationPanel.jsx';
@@ -94,8 +93,7 @@ function InnerApp() {
             transition: 'transform 0.3s'
           }}
         >
-          <PullToRefresh
-            onRefresh={handleRefresh}
+          <Box
             sx={{
               width: '100%',
               height: '100%',
@@ -120,6 +118,7 @@ function InnerApp() {
               />
               <Legend
                 selectedUser={selectedUser}
+                onRefresh={handleRefresh}
                 onUserChange={user => {
                   setSelectedUser(user);
                   localStorage.setItem(USER_KEY, user);
@@ -132,31 +131,28 @@ function InnerApp() {
                 onStatusChange={handleStatusChange}
               />
             </Box>
-          </PullToRefresh>
-          <PullToRefresh
-            onRefresh={handleRefresh}
+          </Box>
+          <Box
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
               <AvailabilityPeriodPanel panelBg={panelBg} onReserve={() => setPanel(2)} onBack={() => setPanel(0)} />
             </Box>
-          </PullToRefresh>
-          <PullToRefresh
-            onRefresh={handleRefresh}
+          </Box>
+          <Box
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
               <AvailabilityReservationPanel panelBg={panelBg} onBack={() => setPanel(1)} />
             </Box>
-          </PullToRefresh>
-          <PullToRefresh
-            onRefresh={handleRefresh}
+          </Box>
+          <Box
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
               <SettingsPanel panelBg={panelBg} onBack={() => setPanel(2)} />
             </Box>
-          </PullToRefresh>
+          </Box>
         </Box>
         <Box
           sx={{
