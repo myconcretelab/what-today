@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import CalendarBar from './components/CalendarBar';
 import ArrivalsList from './components/ArrivalsList';
@@ -36,25 +36,6 @@ function InnerApp() {
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
   const [panel, setPanel] = useState(0);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-
-  const handleTouchStart = e => {
-    const t = e.touches[0];
-    touchStartX.current = t.clientX;
-    touchStartY.current = t.clientY;
-  };
-
-  const handleTouchEnd = e => {
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX.current;
-    const dy = t.clientY - touchStartY.current;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0 && panel < 3) setPanel(p => Math.min(p + 1, 3));
-      if (dx > 0 && panel > 0) setPanel(p => Math.max(p - 1, 0));
-    }
-  };
-
   // Chargement des données après authentification
   useEffect(() => {
     if (!auth) return;
@@ -112,8 +93,6 @@ function InnerApp() {
             transform: `translateX(-${panel * 25}%)`,
             transition: 'transform 0.3s'
           }}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
         >
           <PullToRefresh
             onRefresh={handleRefresh}

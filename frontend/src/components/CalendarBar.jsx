@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Avatar, Card, CardContent, useMediaQuery, Tooltip } from '@mui/material';
+import { Box, Typography, Avatar, Card, CardContent, useMediaQuery } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapVert from '@mui/icons-material/ImportExport';
@@ -25,6 +25,11 @@ const flipAnim = keyframes`
   from { transform: rotateY(0deg); }
   to { transform: rotateY(360deg); }
 `;
+
+const VISIBLE_DAY_COUNT = 7; // number of days shown without scrolling
+const ADDITIONAL_DAY_COUNT = 14; // number of extra days available via scroll
+const TOTAL_DAY_COUNT = VISIBLE_DAY_COUNT + ADDITIONAL_DAY_COUNT;
+const SCROLL_BOUNCE_EASING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'; // bounce-like easing curve
 
 const GITE_ROW_VERTICAL_PADDING = 0.5; // spacing between gîtes rows (theme unit)
 const BOOKING_LINE_THICKNESS = 2; // px thickness for booking line
@@ -91,10 +96,12 @@ function CalendarBar({
   });
   const events = Array.from(mergedMap.values());
 
-  const dayCount = 7;
-  const days = Array.from({ length: dayCount }, (_, i) => today.add(i, 'day'));
-  const lastIndex = dayCount - 1;
-  const baseUnit = 100 / dayCount;
+  const totalDayCount = TOTAL_DAY_COUNT;
+  const days = Array.from({ length: totalDayCount }, (_, i) => today.add(i, 'day'));
+  const lastIndex = totalDayCount - 1;
+  const baseUnit = 100 / totalDayCount;
+  const contentWidthPercent = (totalDayCount / VISIBLE_DAY_COUNT) * 100;
+  const dayWidthPercent = 100 / totalDayCount;
 
   const rangeEnd = today.add(lastIndex, 'day');
   const giteNameMap = React.useMemo(() => {
@@ -192,14 +199,18 @@ function CalendarBar({
   };
 
   const renderDayHeader = () => (
-    <Box sx={{ display: 'flex', alignItems: 'center', pb: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', pb: 1, width: '100%' }}>
       {days.map((date, idx) => (
         <Box
           key={date.format('YYYY-MM-DD')}
           sx={{
-            flex: 1,
+            flex: `0 0 ${dayWidthPercent}%`,
+            maxWidth: `${dayWidthPercent}%`,
             textAlign: 'center',
-            borderRight: idx !== days.length - 1 ? '1px solid #e0e0e0' : 'none'
+            borderRight: idx !== days.length - 1 ? '1px solid #e0e0e0' : 'none',
+            scrollSnapAlign: 'center',
+            transition: `transform 0.4s ${SCROLL_BOUNCE_EASING}`,
+            '&:hover': { transform: 'translateY(-4px)' }
           }}
         >
           <Typography variant="caption" sx={{ fontWeight: 600 }}>
@@ -211,14 +222,25 @@ function CalendarBar({
   );
 
   const renderPeriodContent = () => (
-    <>
-      {renderDayHeader()}
-      {giteCatalog.map(({ id, name }, giteIdx) => {
-        const giteEvents = eventsByGite.get(id) || [];
-        const giteBookings = bookingsByGite.get(id) || [];
-        return (
-          <Box
-            key={id}
+    <Box
+      sx={{
+        width: '100%',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        scrollSnapType: 'x mandatory',
+        scrollBehavior: 'smooth',
+        WebkitOverflowScrolling: 'touch',
+        '&::-webkit-scrollbar': { display: 'none' }
+      }}
+    >
+      <Box sx={{ width: `${contentWidthPercent}%`, minWidth: '100%' }}>
+        {renderDayHeader()}
+        {giteCatalog.map(({ id, name }, giteIdx) => {
+          const giteEvents = eventsByGite.get(id) || [];
+          const giteBookings = bookingsByGite.get(id) || [];
+          return (
+            <Box
+              key={id}
             sx={{
               position: 'relative',
               minHeight: computeRowMinHeight,
@@ -226,109 +248,110 @@ function CalendarBar({
               borderTop: giteIdx === 0 ? '1px solid #ededed' : '1px solid #f0f0f0'
             }}
           >
-            <Tooltip title={name} placement="left">
-              <Box sx={{ width: '100%', position: 'relative', display: 'flex', alignItems: 'stretch' }}>
-                {giteBookings
-                  .map((booking, segIdx) => {
-                    if (booking.end.isBefore(today, 'day')) {
-                      return null;
-                    }
-                    if (booking.start.isAfter(rangeEnd, 'day')) {
-                      return null;
-                    }
-                    const startIdx = booking.start.diff(today, 'day');
-                    const endIdx = booking.end.diff(today, 'day');
-                    const hasStartInRange = startIdx >= 0 && startIdx <= lastIndex;
-                    const hasEndInRange = endIdx >= 0 && endIdx <= lastIndex;
-                    const clampedStartIdx = Math.max(0, Math.min(startIdx, lastIndex));
-                    const clampedEndIdx = Math.max(0, Math.min(endIdx, lastIndex));
-                    const startCenterPercent = (clampedStartIdx + 0.5) * baseUnit;
-                    const endCenterPercent = (clampedEndIdx + 0.5) * baseUnit;
-                    const visibleStartPercent = hasStartInRange ? startCenterPercent : 0;
-                    const visibleEndPercent = hasEndInRange ? endCenterPercent : 100;
-                    const widthPercent = Math.max(visibleEndPercent - visibleStartPercent, 0);
-                    if (widthPercent <= 0) {
-                      return null;
-                    }
-                    const key = `${booking.giteId}-${booking.debut}-${booking.fin}-${segIdx}`;
-                    const lineColor = BOOKING_LINE_COLOR === 'dynamic'
-                      ? sourceColor(booking.source)
-                      : BOOKING_LINE_COLOR;
-                    const leftOffset = hasStartInRange
-                      ? `calc(${startCenterPercent}% + ${BOOKING_LINE_AVATAR_CLEARANCE}px)`
-                      : `${visibleStartPercent}%`;
-                    const widthReductionPx = (hasStartInRange ? BOOKING_LINE_AVATAR_CLEARANCE : 0)
-                      + (hasEndInRange ? BOOKING_LINE_AVATAR_CLEARANCE : 0);
-                    const widthStyle = widthReductionPx > 0
-                      ? `max(${BOOKING_LINE_THICKNESS}px, calc(${widthPercent}% - ${widthReductionPx}px))`
-                      : `${widthPercent}%`;
-                    const dashStyles = BOOKING_LINE_DASH_SIZE > 0
-                      ? {
-                          backgroundImage: `radial-gradient(circle, ${lineColor} 0, ${lineColor} 45%, transparent 55%)`,
-                          backgroundSize: `${BOOKING_LINE_DASH_SIZE * 2}px ${BOOKING_LINE_THICKNESS}px`,
-                          backgroundRepeat: 'repeat-x',
-                          backgroundPosition: 'left center',
-                          backgroundColor: 'transparent'
-                        }
-                      : { backgroundColor: lineColor };
-                    return (
-                      <Box
-                        key={key}
-                        sx={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: leftOffset,
-                          width: widthStyle,
-                          height: `${BOOKING_LINE_THICKNESS}px`,
-                          transform: 'translateY(-50%)',
-                          borderRadius: `${BOOKING_LINE_THICKNESS / 2}px`,
-                          opacity: BOOKING_LINE_ALPHA,
-                          pointerEvents: 'none',
-                          zIndex: 1,
-                          ...dashStyles
-                        }}
-                      />
-                    );
-                  })}
-                {days.map((date, dayIdx) => {
-                  const event = giteEvents.find(ev => ev.date.isSame(date, 'day'));
-                  const borderRight = dayIdx !== days.length - 1 ? '1px solid #f0f0f0' : 'none';
-                  const eventId = event ? buildEventId(event) : null;
+            <Box sx={{ width: '100%', position: 'relative', display: 'flex', alignItems: 'stretch' }}>
+              {giteBookings
+                .map((booking, segIdx) => {
+                  if (booking.end.isBefore(today, 'day')) {
+                    return null;
+                  }
+                  if (booking.start.isAfter(rangeEnd, 'day')) {
+                    return null;
+                  }
+                  const startIdx = booking.start.diff(today, 'day');
+                  const endIdx = booking.end.diff(today, 'day');
+                  const hasStartInRange = startIdx >= 0 && startIdx <= lastIndex;
+                  const hasEndInRange = endIdx >= 0 && endIdx <= lastIndex;
+                  const clampedStartIdx = Math.max(0, Math.min(startIdx, lastIndex));
+                  const clampedEndIdx = Math.max(0, Math.min(endIdx, lastIndex));
+                  const startCenterPercent = (clampedStartIdx + 0.5) * baseUnit;
+                  const endCenterPercent = (clampedEndIdx + 0.5) * baseUnit;
+                  const visibleStartPercent = hasStartInRange ? startCenterPercent : 0;
+                  const visibleEndPercent = hasEndInRange ? endCenterPercent : 100;
+                  const widthPercent = Math.max(visibleEndPercent - visibleStartPercent, 0);
+                  if (widthPercent <= 0) {
+                    return null;
+                  }
+                  const key = `${booking.giteId}-${booking.debut}-${booking.fin}-${segIdx}`;
+                  const lineColor = BOOKING_LINE_COLOR === 'dynamic'
+                    ? sourceColor(booking.source)
+                    : BOOKING_LINE_COLOR;
+                  const leftOffset = hasStartInRange
+                    ? `calc(${startCenterPercent}% + ${BOOKING_LINE_AVATAR_CLEARANCE}px)`
+                    : `${visibleStartPercent}%`;
+                  const widthReductionPx = (hasStartInRange ? BOOKING_LINE_AVATAR_CLEARANCE : 0)
+                    + (hasEndInRange ? BOOKING_LINE_AVATAR_CLEARANCE : 0);
+                  const widthStyle = widthReductionPx > 0
+                    ? `max(${BOOKING_LINE_THICKNESS}px, calc(${widthPercent}% - ${widthReductionPx}px))`
+                    : `${widthPercent}%`;
+                  const dashStyles = BOOKING_LINE_DASH_SIZE > 0
+                    ? {
+                        backgroundImage: `radial-gradient(circle, ${lineColor} 0, ${lineColor} 45%, transparent 55%)`,
+                        backgroundSize: `${BOOKING_LINE_DASH_SIZE * 2}px ${BOOKING_LINE_THICKNESS}px`,
+                        backgroundRepeat: 'repeat-x',
+                        backgroundPosition: 'left center',
+                        backgroundColor: 'transparent'
+                      }
+                    : { backgroundColor: lineColor };
                   return (
                     <Box
-                      key={date.format('YYYY-MM-DD')}
+                      key={key}
                       sx={{
-                        flex: 1,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        borderRight,
-                        position: 'relative'
+                        position: 'absolute',
+                        top: '50%',
+                        left: leftOffset,
+                        width: widthStyle,
+                        height: `${BOOKING_LINE_THICKNESS}px`,
+                        transform: 'translateY(-50%)',
+                        borderRadius: `${BOOKING_LINE_THICKNESS / 2}px`,
+                        opacity: BOOKING_LINE_ALPHA,
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                        ...dashStyles
                       }}
-                    >
-                      {event && renderAvatar(event, eventId)}
-                    </Box>
+                    />
                   );
                 })}
-              </Box>
-            </Tooltip>
+              {days.map((date, dayIdx) => {
+                const event = giteEvents.find(ev => ev.date.isSame(date, 'day'));
+                const borderRight = dayIdx !== days.length - 1 ? '1px solid #f0f0f0' : 'none';
+                const eventId = event ? buildEventId(event) : null;
+                return (
+                  <Box
+                    key={date.format('YYYY-MM-DD')}
+                    sx={{
+                      flex: `0 0 ${dayWidthPercent}%`,
+                      maxWidth: `${dayWidthPercent}%`,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderRight,
+                      position: 'relative',
+                      scrollSnapAlign: 'center',
+                      transition: `transform 0.4s ${SCROLL_BOUNCE_EASING}`,
+                      '&:hover': { transform: 'translateY(-6px)' }
+                    }}
+                  >
+                    {event && renderAvatar(event, eventId)}
+                  </Box>
+                );
+              })}
+            </Box>
           </Box>
         );
-      })}
-    </>
+        })}
+      </Box>
+    </Box>
   );
 
   return (
     <Card sx={{ mb: 3, pb: 0, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
       <CardContent sx={{ p: 1 }}>
-        <Box sx={{ width: '100%', overflowX: 'hidden' }}>
+        <Box sx={{ width: '100%' }}>
           <Box sx={{ width: '100%' }}>
             {renderPeriodContent()}
             {errors.length > 0 && (
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                <Tooltip title={`Sources indisponibles: ${errors.join(', ')}`}>
-                  <Typography variant="h6">?</Typography>
-                </Tooltip>
+                <Typography variant="h6">?</Typography>
               </Box>
             )}
           </Box>
