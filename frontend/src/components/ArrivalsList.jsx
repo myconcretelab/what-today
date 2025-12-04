@@ -172,7 +172,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
       {['today', 'tomorrow'].map(key => (
         <Card key={key} sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 200 }}>
+            <Typography variant="h6" sx={{ fontWeight: theme.typography.fontWeightLight }}>
               {key === 'today' ? 'Aujourd\'hui' : 'Demain'}
             </Typography>
             <List sx={{ px: 0 }}>
@@ -314,7 +314,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
 
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
-          <Typography variant="h6" sx={{ fontFamily: `'Museo Slab', 'Museo', serif`, fontWeight: 200 }}>Prochains jours</Typography>
+          <Typography variant="h6" sx={{ fontWeight: theme.typography.fontWeightLight }}>Prochains jours</Typography>
           <List sx={{ px: 0 }}>
             {groupes.next.map(ev => {
               const color = sourceColor(ev.source);
@@ -384,8 +384,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                           display="block"
                           sx={{
                             color: 'inherit',
-                            fontFamily: `'Museo Slab', 'Museo', serif`,
-                            fontWeight: 500,
+                            fontFamily: theme.typography.fontFamily,
+                            fontWeight: theme.typography.fontWeightMedium,
                             fontSize: '0.9rem'
                           }}
                         >
@@ -398,8 +398,8 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
                             display="block"
                             sx={{
                               color: 'inherit',
-                              fontFamily: `'Museo Slab', 'Museo', serif`,
-                              fontWeight: 300,
+                              fontFamily: theme.typography.fontFamily,
+                              fontWeight: theme.typography.fontWeightLight,
                               fontStyle: 'italic',
                               mt: 0.5
                             }}
