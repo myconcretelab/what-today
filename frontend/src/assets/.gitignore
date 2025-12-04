@@ -1,0 +1,6 @@
+# Prevent font assets from being committed
+fonts/
+*.otf
+*.ttf
+*.woff
+*.woff2
