@@ -23,11 +23,21 @@ import { ThemeColorsProvider, useThemeColors } from './theme.jsx';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
 const AUTH_KEY = 'wt-authenticated';
+const LOADING_STEPS = [
+  'Connexion au serveur',
+  'Récupération des arrivées',
+  'Récupération des statuts',
+  'Préparation de l\'interface'
+];
 
 function InnerApp() {
   const { theme } = useThemeColors();
   const [auth, setAuth] = useState(localStorage.getItem(AUTH_KEY) === 'true');
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState({
+    active: true,
+    step: 0,
+    message: 'Initialisation...'
+  });
   const [data, setData] = useState({ reservations: [], erreurs: [] });
   const [statuses, setStatuses] = useState({});
   const USER_KEY = 'wt-user';
@@ -38,15 +48,37 @@ function InnerApp() {
   // Chargement des données après authentification
   useEffect(() => {
     if (!auth) return;
-    loadData().finally(() => setLoading(false));
+    loadData();
   }, [auth]);
 
   const loadData = async () => {
-    console.log('Chargement des données...');
-    const [arr, stat] = await Promise.all([fetchArrivals(), fetchStatuses()]);
-    console.log('Données chargées avec succès');
-    setData(arr);
+    setLoadingState({
+      active: true,
+      step: 0,
+      message: 'Connexion au serveur...'
+    });
+
+    const arrivals = await fetchArrivals();
+    setLoadingState({
+      active: true,
+      step: 1,
+      message: 'Arrivées récupérées'
+    });
+
+    const stat = await fetchStatuses();
+    setLoadingState({
+      active: true,
+      step: 2,
+      message: 'Statuts récupérés'
+    });
+
+    setData(arrivals);
     setStatuses(stat);
+    setLoadingState({
+      active: false,
+      step: LOADING_STEPS.length,
+      message: 'Interface prête'
+    });
   };
 
   // Fonction de validation du mot de passe
@@ -69,7 +101,14 @@ function InnerApp() {
   };
 
   if (!auth) return <Login onLogin={handleLogin} />;
-  if (loading) return <Loader />;
+  if (loadingState.active)
+    return (
+      <Loader
+        steps={LOADING_STEPS}
+        activeStep={loadingState.step}
+        message={loadingState.message}
+      />
+    );
   const panelBg = (theme.panelColors && theme.panelColors[panel]) || (theme.panelColors && theme.panelColors[0]) || '#ffffff';
 
   return (
