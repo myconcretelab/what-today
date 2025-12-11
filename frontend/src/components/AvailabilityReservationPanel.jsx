@@ -42,6 +42,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
     includeBedding,
     setIncludeBedding,
     info,
+    handleInfoChange,
     handlePhoneChange,
     handleSave,
     saving,
@@ -201,7 +202,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
             rows={4}
             fullWidth
             value={info}
-            InputProps={{ readOnly: true }}
+            onChange={handleInfoChange}
             sx={{ mb: 1 }}
           />
           <Box sx={{ display: 'flex', gap: 1 }}>

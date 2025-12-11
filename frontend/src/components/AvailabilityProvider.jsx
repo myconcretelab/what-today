@@ -49,6 +49,7 @@ export function AvailabilityProvider({ bookings, children }) {
   const [departure, setDeparture] = useState(dayjs().add(1, 'day'));
   const [selectedGite, setSelectedGite] = useState(null);
   const [info, setInfo] = useState('');
+  const [infoEdited, setInfoEdited] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [singleBeds, setSingleBeds] = useState(0);
@@ -77,8 +78,11 @@ export function AvailabilityProvider({ bookings, children }) {
     if (childCount > 0) parts.push(`Enfants: ${childCount}`);
     if (includeBedding && singleBeds > 0) parts.push(`Lits simples: ${singleBeds}`);
     if (includeBedding && doubleBeds > 0) parts.push(`Lits doubles: ${doubleBeds}`);
-    setInfo(parts.join('\n'));
-  }, [name, phone, singleBeds, doubleBeds, adultCount, childCount, includeBedding]);
+    const generatedInfo = parts.join('\n');
+    if (!infoEdited) {
+      setInfo(generatedInfo);
+    }
+  }, [name, phone, singleBeds, doubleBeds, adultCount, childCount, includeBedding, infoEdited]);
 
   useEffect(() => {
     fetchSchoolHolidays()
@@ -137,6 +141,11 @@ export function AvailabilityProvider({ bookings, children }) {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
     const formatted = digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
     setPhone(formatted);
+  };
+
+  const handleInfoChange = e => {
+    setInfo(e.target.value);
+    setInfoEdited(true);
   };
 
   const handleOpenPicker = event => {
@@ -301,6 +310,7 @@ export function AvailabilityProvider({ bookings, children }) {
         includeBedding,
         setIncludeBedding,
         info,
+        handleInfoChange,
         handlePhoneChange,
         handleSave,
         saving,
