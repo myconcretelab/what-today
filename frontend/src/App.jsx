@@ -15,10 +15,12 @@ import { AvailabilityProvider } from './components/AvailabilityProvider.jsx';
 import { AvailabilityPeriodPanel } from './components/AvailabilityPeriodPanel.jsx';
 import { AvailabilityReservationPanel } from './components/AvailabilityReservationPanel.jsx';
 import SettingsPanel from './components/SettingsPanel';
+import HarImportPanel from './components/HarImportPanel.jsx';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EditIcon from '@mui/icons-material/Edit';
 import SettingsIcon from '@mui/icons-material/Settings';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { ThemeColorsProvider, useThemeColors } from './theme.jsx';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
@@ -125,10 +127,10 @@ function InnerApp() {
         <Box
           sx={{
             display: 'flex',
-            width: '400%',
+            width: '500%',
             height: '100%',
             touchAction: 'pan-y',
-            transform: `translateX(-${panel * 25}%)`,
+            transform: `translateX(-${panel * 20}%)`,
             transition: 'transform 0.3s'
           }}
         >
@@ -189,7 +191,14 @@ function InnerApp() {
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <SettingsPanel panelBg={panelBg} onBack={() => setPanel(2)} />
+              <HarImportPanel panelBg={panelBg} />
+            </Box>
+          </Box>
+          <Box
+            sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
+          >
+            <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
+              <SettingsPanel panelBg={panelBg} onBack={() => setPanel(3)} />
             </Box>
           </Box>
         </Box>
@@ -208,7 +217,7 @@ function InnerApp() {
             sx={{
               position: 'absolute',
               top: 8,
-              left: `calc((100% / 4) * ${panel} + (100% / 8))`,
+              left: `calc((100% / 5) * ${panel} + (100% / 10))`,
               transform: 'translateX(-50%)',
               width:40,
               height: 40,
@@ -235,6 +244,11 @@ function InnerApp() {
           </Box>
           <Box sx={{ flex: 1, textAlign: 'center' }}>
             <IconButton onClick={() => setPanel(3)} sx={{ color: theme.menu?.icon || '#fff' }}>
+              <UploadFileIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <IconButton onClick={() => setPanel(4)} sx={{ color: theme.menu?.icon || '#fff' }}>
               <SettingsIcon />
             </IconButton>
           </Box>

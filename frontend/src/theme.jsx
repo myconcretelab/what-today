@@ -17,7 +17,7 @@ export const DEFAULT_THEME = {
   },
   cardBg: '#f3f3f3ff',
   ticketBg: '#ffffff',
-  panelColors: ['#b0c4b1', '#4a5759', '#ffa69e', '#aed9e0'],
+  panelColors: ['#b0c4b1', '#4a5759', '#ffa69e', '#aed9e0', '#e1c7a2'],
   text: {
     primary: '#1f2937',
     title: '#111827',

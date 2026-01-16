@@ -14,7 +14,6 @@ import {
   CardContent,
   Chip,
   MenuItem,
-  CircularProgress,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -32,8 +31,7 @@ import {
   fetchTexts,
   saveTexts,
   fetchData,
-  saveData,
-  uploadHar
+  saveData
 } from '../services/api';
 
 const GITE_OPTIONS = ['phonsine', 'gree', 'edmond', 'liberte'];
@@ -57,10 +55,6 @@ export default function SettingsPanel({ panelBg, onBack }) {
   } = useThemeColors();
   
   const fileInputRef = useRef(null);
-  const harInputRef = useRef(null);
-  const [isHarUploading, setIsHarUploading] = useState(false);
-  const [harUploadOk, setHarUploadOk] = useState(null); // null | true | false
-  const [harUploadMsg, setHarUploadMsg] = useState('');
 
   useEffect(() => {
     fetchPrices()
@@ -158,36 +152,6 @@ export default function SettingsPanel({ panelBg, onBack }) {
     }
   };
 
-  const handleHarClick = () => {
-    harInputRef.current?.click();
-  };
-
-  const handleImportHar = async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      setHarUploadOk(null);
-      setHarUploadMsg('');
-      setIsHarUploading(true);
-      const text = await file.text();
-      const json = JSON.parse(text);
-      const result = await uploadHar(json);
-      if (result && result.success) {
-        setHarUploadOk(true);
-        setHarUploadMsg('Fichier HAR enregistré sur le serveur.');
-      } else {
-        setHarUploadOk(false);
-        setHarUploadMsg('Le serveur a répondu sans succès.');
-      }
-    } catch (err) {
-      setHarUploadOk(false);
-      setHarUploadMsg('Échec de l\'envoi du fichier HAR.');
-    } finally {
-      setIsHarUploading(false);
-      // reset input so selecting the same file again triggers change
-      e.target.value = '';
-    }
-  };
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
@@ -310,49 +274,6 @@ export default function SettingsPanel({ panelBg, onBack }) {
             <Button variant="contained" onClick={handleExportData}>
               Exporter
             </Button>
-          </Box>
-        </CardContent>
-      </Card>
-      <input
-        type="file"
-        accept=".har,application/json"
-        ref={harInputRef}
-        style={{ display: 'none' }}
-        onChange={handleImportHar}
-      />
-      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
-        <CardContent>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Import du fichier HAR Airbnb
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Le fichier sera enregistré sous "www.airbnb.fr.har" dans le dossier backend.
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={handleHarClick}
-              disabled={isHarUploading}
-              startIcon={isHarUploading ? undefined : null}
-            >
-              {isHarUploading ? (
-                <>
-                  <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
-                  Import en cours…
-                </>
-              ) : (
-                'Importer un fichier .har'
-              )}
-            </Button>
-            {/* Feedback message */}
-            {harUploadOk != null && (
-              <Typography
-                variant="body2"
-                sx={{ mt: 1, color: harUploadOk ? 'success.main' : 'error.main' }}
-              >
-                {harUploadMsg}
-              </Typography>
-            )}
           </Box>
         </CardContent>
       </Card>

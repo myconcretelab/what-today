@@ -36,6 +36,203 @@ const SHEET_NAMES = {
   edmond: 'Edmond',
   liberte: 'Liberté'
 };
+const RUN_COL_INDEX = 15;
+const HAR_HIGHLIGHT_COLOR = { red: 1, green: 0.976, blue: 0.769 };
+const WRITE_THROTTLE_MS = 1100;
+const WRITE_RETRY_LIMIT = 5;
+const WRITE_BACKOFF_BASE_MS = 500;
+const WRITE_BACKOFF_MAX_MS = 8000;
+let lastWriteAt = 0;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(res) {
+  const value = res.headers.get('retry-after');
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) return 0;
+  return Math.max(0, seconds * 1000);
+}
+
+function isRetryableWriteStatus(status) {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+async function throttleWrite() {
+  const now = Date.now();
+  const waitMs = lastWriteAt + WRITE_THROTTLE_MS - now;
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+  lastWriteAt = Date.now();
+}
+
+async function requestWrite(url, options, { expectJson = true } = {}) {
+  let attempt = 0;
+  let delayMs = 0;
+  while (attempt <= WRITE_RETRY_LIMIT) {
+    if (delayMs > 0) {
+      await sleep(delayMs);
+    }
+    await throttleWrite();
+    const res = await fetch(url, options);
+    if (res.ok) {
+      return expectJson ? res.json() : res.text();
+    }
+
+    const bodyText = await res.text().catch(() => '');
+    if (!isRetryableWriteStatus(res.status) || attempt === WRITE_RETRY_LIMIT) {
+      throw new Error(`Sheets write error ${res.status}: ${bodyText}`);
+    }
+
+    const retryAfterMs = parseRetryAfterMs(res);
+    const backoff = Math.min(WRITE_BACKOFF_BASE_MS * (2 ** attempt), WRITE_BACKOFF_MAX_MS);
+    const jitter = Math.floor(Math.random() * 200);
+    delayMs = Math.max(backoff + jitter, retryAfterMs);
+    attempt += 1;
+  }
+  throw new Error('Sheets write error: retry limit exceeded');
+}
+
+function normalizeHeaderName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s/g, '')
+    .toLowerCase();
+}
+
+function getColumnIndex(header, name) {
+  const target = normalizeHeaderName(name);
+  for (let i = 0; i < header.length; i++) {
+    if (normalizeHeaderName(header[i]) === target) return i;
+  }
+  return -1;
+}
+
+function normalizeGiteName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s/g, '')
+    .toLowerCase();
+}
+
+const GITE_ID_BY_SHEET = Object.fromEntries(
+  Object.entries(SHEET_NAMES).map(([id, name]) => [normalizeGiteName(name), id])
+);
+
+function resolveGiteId(listingName) {
+  const key = normalizeGiteName(listingName);
+  return GITE_ID_BY_SHEET[key] || null;
+}
+
+function formatDateFr(isoDate) {
+  const d = dayjs(isoDate, 'YYYY-MM-DD');
+  return d.isValid() ? d.format('DD/MM/YYYY') : '';
+}
+
+function parseSheetDateToIso(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') {
+    const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+    return dayjs(date).isValid() ? dayjs(date).format('YYYY-MM-DD') : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    const parsed = dayjs(trimmed, ['DD/MM/YYYY', 'YYYY-MM-DD', 'YYYYMMDD'], true);
+    if (parsed.isValid()) return parsed.format('YYYY-MM-DD');
+    const fallback = dayjs(trimmed);
+    return fallback.isValid() ? fallback.format('YYYY-MM-DD') : null;
+  }
+  return null;
+}
+
+function overlapsCurrentYear(startIso, endIso) {
+  if (!startIso || !endIso) return false;
+  const start = dayjs(startIso, 'YYYY-MM-DD');
+  const endExclusive = dayjs(endIso, 'YYYY-MM-DD');
+  if (!start.isValid() || !endExclusive.isValid()) return false;
+  const year = dayjs().year();
+  const yearStart = dayjs(`${year}-01-01`, 'YYYY-MM-DD');
+  const yearEnd = dayjs(`${year}-12-31`, 'YYYY-MM-DD');
+  const endInclusive = endExclusive.subtract(1, 'day');
+  return !start.isAfter(yearEnd, 'day') && !endInclusive.isBefore(yearStart, 'day');
+}
+
+function toColumnLetter(index) {
+  let col = '';
+  let n = index;
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    col = String.fromCharCode(65 + rem) + col;
+    n = Math.floor((n - 1) / 26);
+  }
+  return col || 'A';
+}
+
+function parseRowNumberFromRange(range) {
+  if (!range) return null;
+  const match = range.match(/!([A-Z]+)(\d+):/);
+  if (match) return parseInt(match[2], 10);
+  const fallback = range.match(/!([A-Z]+)(\d+)/);
+  return fallback ? parseInt(fallback[2], 10) : null;
+}
+
+function buildSheetColumns(header) {
+  const iNom = getColumnIndex(header, 'Nom');
+  const iDebut = getColumnIndex(header, 'Debut');
+  const iFin = getColumnIndex(header, 'Fin');
+  const iNuits = getColumnIndex(header, 'Nb Nuits');
+  const iAdultes = getColumnIndex(header, 'Nb Adultes');
+  let iPrixNuit = getColumnIndex(header, 'Prix/nuits');
+  if (iPrixNuit === -1) iPrixNuit = getColumnIndex(header, 'Prix/nuit');
+  const iRevenus = getColumnIndex(header, 'Revenus');
+  const iPaiement = getColumnIndex(header, 'Paiement');
+  let iComment = getColumnIndex(header, 'Comment');
+  if (iComment === -1) iComment = getColumnIndex(header, 'Commentaire');
+
+  const colDebut = iDebut !== -1 ? iDebut + 1 : 2;
+  const colFin = iFin !== -1 ? iFin + 1 : 3;
+  const colNuits = iNuits !== -1 ? iNuits + 1 : 4;
+  const colAdultes = iAdultes !== -1 ? iAdultes + 1 : 5;
+  const colPrixNuit = iPrixNuit !== -1 ? iPrixNuit + 1 : 6;
+  const colRevenus = iRevenus !== -1 ? iRevenus + 1 : 7;
+  const colPaiement = iPaiement !== -1 ? iPaiement + 1 : 8;
+  const colComment = iComment !== -1 ? iComment + 1 : null;
+  const colNom = iNom !== -1 ? iNom + 1 : 1;
+
+  const highlightCols = Math.max(
+    colPaiement,
+    colRevenus,
+    colPrixNuit,
+    colAdultes,
+    colNuits,
+    colComment || 0
+  );
+
+  return {
+    header,
+    iDebut,
+    iFin,
+    colDebut,
+    colFin,
+    colNuits,
+    colAdultes,
+    colPrixNuit,
+    colRevenus,
+    colPaiement,
+    colComment,
+    colNom,
+    highlightCols
+  };
+}
+
+function getSheetRowLength(columns) {
+  return Math.max(columns.header.length, columns.highlightCols, RUN_COL_INDEX);
+}
 
 function base64url(str) {
   return Buffer.from(str)
@@ -83,6 +280,418 @@ async function getSheetId(sheetName, token) {
   const data = await res.json();
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
   return sheet.properties.sheetId;
+}
+
+async function fetchSheetValues(range, token) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Sheets values error ${res.status}: ${text}`);
+  }
+  const data = await res.json();
+  return data.values || [];
+}
+
+async function fetchSheetHeaderAndRows(sheetName, token) {
+  const values = await fetchSheetValues(`${sheetName}!A1:O`, token);
+  const header = values[0] || [];
+  const rows = values.slice(1);
+  return { header, rows };
+}
+
+function buildExistingReservationKeySet(rows, columns, giteId) {
+  const keys = new Set();
+  if (!rows || !Array.isArray(rows)) return keys;
+  if (columns.iDebut === -1 || columns.iFin === -1) return keys;
+  for (const row of rows) {
+    const startIso = parseSheetDateToIso(row[columns.iDebut]);
+    const endIso = parseSheetDateToIso(row[columns.iFin]);
+    if (startIso && endIso) {
+      keys.add(`${giteId}|${startIso}|${endIso}`);
+    }
+  }
+  return keys;
+}
+
+async function updateSingleCell(sheetName, colIndex, rowNumber, value, token) {
+  const colLetter = toColumnLetter(colIndex);
+  const range = `${sheetName}!${colLetter}${rowNumber}`;
+  await requestWrite(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ values: [[value]] })
+    },
+    { expectJson: true }
+  );
+}
+
+async function appendRowValues(sheetName, rowValues, token) {
+  const lastCol = toColumnLetter(rowValues.length);
+  const range = `${sheetName}!A1:${lastCol}`;
+  const data = await requestWrite(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ values: [rowValues] })
+    },
+    { expectJson: true }
+  );
+  const rowNumber = parseRowNumberFromRange(data?.updates?.updatedRange);
+  return rowNumber;
+}
+
+async function appendRowsValues(sheetName, rowsValues, token) {
+  if (!rowsValues.length) return null;
+  const maxLen = rowsValues.reduce((max, row) => Math.max(max, row.length), 0);
+  const lastCol = toColumnLetter(maxLen);
+  const range = `${sheetName}!A1:${lastCol}`;
+  const data = await requestWrite(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ values: rowsValues })
+    },
+    { expectJson: true }
+  );
+  const startRow = parseRowNumberFromRange(data?.updates?.updatedRange);
+  return { startRow, rowCount: rowsValues.length };
+}
+
+async function batchUpdateValues(data, token) {
+  if (!data.length) return;
+  await requestWrite(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data })
+    },
+    { expectJson: true }
+  );
+}
+
+async function highlightRange(sheetId, startRow, rowCount, highlightCols, token) {
+  if (rowCount <= 0 || highlightCols <= 0) return;
+  await batchUpdateSheets(
+    [
+      {
+        repeatCell: {
+          range: {
+            sheetId,
+            startRowIndex: startRow - 1,
+            endRowIndex: startRow - 1 + rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: highlightCols
+          },
+          cell: { userEnteredFormat: { backgroundColor: HAR_HIGHLIGHT_COLOR } },
+          fields: 'userEnteredFormat.backgroundColor'
+        }
+      }
+    ],
+    token
+  );
+}
+
+async function highlightRow(sheetId, rowNumber, highlightCols, token) {
+  await highlightRange(sheetId, rowNumber, 1, highlightCols, token);
+}
+
+function buildHarRowValues(reservation, columns, runId) {
+  const rowLength = getSheetRowLength(columns);
+  const rowValues = Array(rowLength).fill('');
+  const startStr = formatDateFr(reservation.checkIn);
+  const endStr = formatDateFr(reservation.checkOut);
+  const paymentText = reservation.type === 'airbnb' ? 'Airbnb' : 'A définir';
+  const nameValue = reservation.name || '';
+  const commentValue = reservation.comment || '';
+  const payoutValue = typeof reservation.payout === 'number' ? reservation.payout : '';
+
+  rowValues[columns.colNom - 1] = nameValue;
+  rowValues[columns.colDebut - 1] = startStr;
+  rowValues[columns.colFin - 1] = endStr;
+  rowValues[columns.colPaiement - 1] = paymentText;
+  if (columns.colComment) rowValues[columns.colComment - 1] = commentValue;
+  if (reservation.type === 'airbnb' && payoutValue !== '') {
+    rowValues[columns.colRevenus - 1] = payoutValue;
+  }
+  if (runId && rowLength >= RUN_COL_INDEX) {
+    rowValues[RUN_COL_INDEX - 1] = runId;
+  }
+
+  return { rowValues, payoutValue };
+}
+
+function resolveNights(reservation) {
+  if (typeof reservation.nights === 'number' && Number.isFinite(reservation.nights)) {
+    return Math.max(reservation.nights, 0);
+  }
+  const startDate = dayjs(reservation.checkIn, 'YYYY-MM-DD', true);
+  const endDate = dayjs(reservation.checkOut, 'YYYY-MM-DD', true);
+  if (!startDate.isValid() || !endDate.isValid()) return 0;
+  return Math.max(endDate.diff(startDate, 'day'), 0);
+}
+
+function splitReservationByMonth(reservation) {
+  const start = dayjs(reservation.checkIn, 'YYYY-MM-DD', true);
+  const end = dayjs(reservation.checkOut, 'YYYY-MM-DD', true);
+  if (!start.isValid() || !end.isValid() || !end.isAfter(start, 'day')) {
+    return [reservation];
+  }
+  const endInclusive = end.subtract(1, 'day');
+  if (start.format('YYYY-MM') === endInclusive.format('YYYY-MM')) {
+    return [reservation];
+  }
+
+  const totalNights = Math.max(end.diff(start, 'day'), 0);
+  const payoutValue = typeof reservation.payout === 'number' ? reservation.payout : null;
+  const perNight = payoutValue != null && totalNights > 0 ? payoutValue / totalNights : null;
+
+  const segments = [];
+  let cursor = start.startOf('day');
+  const endExclusive = end.startOf('day');
+
+  while (cursor.isBefore(endExclusive, 'day')) {
+    const nextMonthStart = cursor.add(1, 'month').startOf('month');
+    const stop = endExclusive.isBefore(nextMonthStart, 'day') ? endExclusive : nextMonthStart;
+    const nights = Math.max(stop.diff(cursor, 'day'), 0);
+    if (nights <= 0) break;
+
+    const segment = {
+      ...reservation,
+      checkIn: cursor.format('YYYY-MM-DD'),
+      checkOut: stop.format('YYYY-MM-DD'),
+      nights
+    };
+    if (perNight != null) {
+      segment.payout = perNight * nights;
+    }
+    segments.push(segment);
+    cursor = stop;
+  }
+
+  return segments.length ? segments : [reservation];
+}
+
+async function insertHarReservation({ reservation, columns, giteId, sheetName, sheetId, token, runId }) {
+  const { rowValues, payoutValue } = buildHarRowValues(reservation, columns, runId);
+  const rowNumber = await appendRowValues(sheetName, rowValues, token);
+  if (!rowNumber) throw new Error('Failed to resolve inserted row');
+
+  const startDate = dayjs(reservation.checkIn, 'YYYY-MM-DD');
+  const endDate = dayjs(reservation.checkOut, 'YYYY-MM-DD');
+  const nights = startDate.isValid() && endDate.isValid()
+    ? Math.max(endDate.diff(startDate, 'day'), 0)
+    : 0;
+
+  const debutCol = toColumnLetter(columns.colDebut);
+  const finCol = toColumnLetter(columns.colFin);
+  const nuitsCol = toColumnLetter(columns.colNuits);
+  const prixCol = toColumnLetter(columns.colPrixNuit);
+
+  await updateSingleCell(
+    sheetName,
+    columns.colNuits,
+    rowNumber,
+    `=${finCol}${rowNumber}-${debutCol}${rowNumber}`,
+    token
+  );
+
+  const adultsValue = giteId === 'liberte' ? 10 : 2;
+  await updateSingleCell(sheetName, columns.colAdultes, rowNumber, adultsValue, token);
+
+  if (reservation.type === 'airbnb') {
+    if (typeof payoutValue === 'number' && nights > 0) {
+      const perNight = payoutValue / nights;
+      await updateSingleCell(sheetName, columns.colPrixNuit, rowNumber, perNight, token);
+    }
+  }
+
+  if (reservation.type === 'personal') {
+    await updateSingleCell(
+      sheetName,
+      columns.colRevenus,
+      rowNumber,
+      `=${prixCol}${rowNumber}*${nuitsCol}${rowNumber}`,
+      token
+    );
+  }
+
+  if (columns.highlightCols > 0) {
+    await highlightRow(sheetId, rowNumber, columns.highlightCols, token);
+  }
+
+  return rowNumber;
+}
+
+async function batchUpdateSheets(requests, token) {
+  await requestWrite(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ requests })
+    },
+    { expectJson: true }
+  );
+}
+
+async function updateRowValues(sheetName, rowNumber, rowValues, token) {
+  const lastCol = toColumnLetter(rowValues.length);
+  const range = `${sheetName}!A${rowNumber}:${lastCol}${rowNumber}`;
+  await requestWrite(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ values: [rowValues] })
+    },
+    { expectJson: true }
+  );
+}
+
+async function removeEmptyRows({ sheetName, sheetId, token, colCount }) {
+  const lastCol = toColumnLetter(colCount);
+  const rows = await fetchSheetValues(`${sheetName}!A2:${lastCol}`, token);
+  if (!rows.length) return 0;
+
+  const toDelete = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] || [];
+    let allEmpty = true;
+    for (let c = 0; c < colCount; c++) {
+      const val = row[c];
+      if (val !== '' && val != null) {
+        allEmpty = false;
+        break;
+      }
+    }
+    if (allEmpty) toDelete.push(i + 2);
+  }
+
+  if (!toDelete.length) return 0;
+  const requests = toDelete
+    .sort((a, b) => b - a)
+    .map(rowNumber => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rowNumber - 1,
+          endIndex: rowNumber
+        }
+      }
+    }));
+  await batchUpdateSheets(requests, token);
+  return toDelete.length;
+}
+
+async function sortSheetByDate({ sheetId, sortColIndex, rowCount, colCount, token }) {
+  if (rowCount <= 1 || sortColIndex < 0) return;
+  await batchUpdateSheets(
+    [
+      {
+        sortRange: {
+          range: {
+            sheetId,
+            startRowIndex: 1,
+            endRowIndex: rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: colCount
+          },
+          sortSpecs: [{ dimensionIndex: sortColIndex, sortOrder: 'ASCENDING' }]
+        }
+      }
+    ],
+    token
+  );
+}
+
+async function insertBlankRow(sheetId, rowNumber, token) {
+  await batchUpdateSheets(
+    [
+      {
+        insertDimension: {
+          range: {
+            sheetId,
+            dimension: 'ROWS',
+            startIndex: rowNumber - 1,
+            endIndex: rowNumber
+          },
+          inheritFromBefore: false
+        }
+      }
+    ],
+    token
+  );
+}
+
+async function insertMonthSeparators({ sheetName, sheetId, token, dateColIndex, colCount }) {
+  if (dateColIndex < 0) return 0;
+  const dateColLetter = toColumnLetter(dateColIndex + 1);
+  const dateValues = await fetchSheetValues(`${sheetName}!${dateColLetter}2:${dateColLetter}`, token);
+  if (!dateValues.length) return 0;
+
+  let previousYM = null;
+  let offset = 0;
+  const rowsToInsert = [];
+
+  for (let i = 0; i < dateValues.length; i++) {
+    const cellVal = dateValues[i] ? dateValues[i][0] : null;
+    const iso = parseSheetDateToIso(cellVal);
+    if (!iso) continue;
+    const currentYM = iso.slice(0, 7);
+    if (previousYM && currentYM !== previousYM) {
+      const rowToInsert = 2 + i + offset;
+      offset += 1;
+      rowsToInsert.push(rowToInsert);
+    }
+    previousYM = currentYM;
+  }
+
+  if (!rowsToInsert.length) return 0;
+
+  const insertRequests = rowsToInsert.map(rowNumber => ({
+    insertDimension: {
+      range: {
+        sheetId,
+        dimension: 'ROWS',
+        startIndex: rowNumber - 1,
+        endIndex: rowNumber
+      },
+      inheritFromBefore: false
+    }
+  }));
+  await batchUpdateSheets(insertRequests, token);
+
+  const lastCol = toColumnLetter(colCount);
+  const emptyRow = Array(colCount).fill('');
+  const updates = rowsToInsert.map(rowNumber => ({
+    range: `${sheetName}!A${rowNumber}:${lastCol}${rowNumber}`,
+    values: [emptyRow]
+  }));
+  await batchUpdateValues(updates, token);
+
+  return rowsToInsert.length;
+}
+
+async function postProcessHarSheet({ sheetName, sheetId, columns, token }) {
+  const colCount = getSheetRowLength(columns);
+  await removeEmptyRows({ sheetName, sheetId, token, colCount });
+
+  const lastCol = toColumnLetter(colCount);
+  const rows = await fetchSheetValues(`${sheetName}!A2:${lastCol}`, token);
+  const rowCount = rows.length + 1;
+  const dateColIndex = columns.iDebut !== -1 ? columns.iDebut : columns.colDebut - 1;
+
+  await sortSheetByDate({ sheetId, sortColIndex: dateColIndex, rowCount, colCount, token });
+  await insertMonthSeparators({ sheetName, sheetId, token, dateColIndex, colCount });
 }
 
 // Fichier de stockage des statuts
@@ -846,6 +1455,262 @@ app.get('/api/har-calendar', (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('Failed to parse HAR:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/har/preview', async (req, res) => {
+  try {
+    const har = req.body || {};
+    const parsed = parseHarReservationsByListing(har);
+    const flat = [];
+    for (const [listingName, items] of Object.entries(parsed || {})) {
+      const giteId = resolveGiteId(listingName);
+      const sheetName = giteId ? SHEET_NAMES[giteId] : null;
+      for (const item of items || []) {
+        const baseReservation = {
+          type: item.type || 'personal',
+          checkIn: item.checkIn,
+          checkOut: item.checkOut,
+          nights: item.nights,
+          name: item.name || '',
+          payout: typeof item.payout === 'number' ? item.payout : null,
+          comment: item.comment || ''
+        };
+        const segments = splitReservationByMonth(baseReservation);
+        for (const seg of segments) {
+          flat.push({
+            giteId,
+            giteName: listingName,
+            sheetName,
+            ...seg
+          });
+        }
+      }
+    }
+
+    const token = await getAccessToken();
+    const giteIds = Array.from(new Set(flat.map(r => r.giteId).filter(Boolean)));
+    const existingByGite = {};
+    for (const giteId of giteIds) {
+      const sheetName = SHEET_NAMES[giteId];
+      const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
+      const columns = buildSheetColumns(header);
+      const keys = buildExistingReservationKeySet(rows, columns, giteId);
+      existingByGite[giteId] = { columns, keys };
+    }
+
+    const counts = {
+      total: flat.length,
+      new: 0,
+      existing: 0,
+      outsideYear: 0,
+      invalid: 0,
+      unknown: 0
+    };
+    const byGite = {};
+    const reservations = flat.map((r, idx) => {
+      const start = dayjs(r.checkIn, 'YYYY-MM-DD', true);
+      const end = dayjs(r.checkOut, 'YYYY-MM-DD', true);
+      const key = r.giteId ? `${r.giteId}|${r.checkIn}|${r.checkOut}` : null;
+      let status = 'new';
+      let reason = '';
+
+      if (!r.giteId) {
+        status = 'unknown';
+        reason = 'gite inconnu';
+        counts.unknown += 1;
+      } else if (!start.isValid() || !end.isValid()) {
+        status = 'invalid';
+        reason = 'dates invalides';
+        counts.invalid += 1;
+      } else if (!overlapsCurrentYear(r.checkIn, r.checkOut)) {
+        status = 'outside_year';
+        reason = 'hors année';
+        counts.outsideYear += 1;
+      } else if (existingByGite[r.giteId]?.keys?.has(key)) {
+        status = 'existing';
+        reason = 'déjà présent';
+        counts.existing += 1;
+      } else {
+        counts.new += 1;
+      }
+
+      if (r.giteName) {
+        if (!byGite[r.giteName]) {
+          byGite[r.giteName] = { total: 0, new: 0, existing: 0, outsideYear: 0, invalid: 0, unknown: 0 };
+        }
+        byGite[r.giteName].total += 1;
+        if (status === 'new') byGite[r.giteName].new += 1;
+        if (status === 'existing') byGite[r.giteName].existing += 1;
+        if (status === 'outside_year') byGite[r.giteName].outsideYear += 1;
+        if (status === 'invalid') byGite[r.giteName].invalid += 1;
+        if (status === 'unknown') byGite[r.giteName].unknown += 1;
+      }
+
+      const idRaw = `${r.giteId || 'unknown'}|${r.checkIn}|${r.checkOut}|${r.name || ''}|${r.type || ''}|${idx}`;
+      const id = crypto.createHash('sha1').update(idRaw).digest('hex').slice(0, 12);
+
+      return {
+        id,
+        ...r,
+        status,
+        reason
+      };
+    });
+
+    res.json({ success: true, reservations, counts, byGite });
+  } catch (err) {
+    console.error('Failed to preview HAR:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/har/import', async (req, res) => {
+  try {
+    const reservations = Array.isArray(req.body?.reservations) ? req.body.reservations : [];
+    if (reservations.length === 0) {
+      return res.status(400).json({ success: false, error: 'No reservations provided' });
+    }
+
+    const token = await getAccessToken();
+    const runId = new Date().toISOString();
+    const grouped = {};
+    for (const r of reservations) {
+      const giteId = r.giteId || resolveGiteId(r.giteName || r.listingName);
+      if (!giteId) {
+        if (!grouped.unknown) grouped.unknown = [];
+        grouped.unknown.push(r);
+        continue;
+      }
+      if (!grouped[giteId]) grouped[giteId] = [];
+      grouped[giteId].push({ ...r, giteId });
+    }
+
+    const summary = {
+      inserted: 0,
+      skipped: { duplicate: 0, invalid: 0, outsideYear: 0, unknown: 0 },
+      perGite: {}
+    };
+
+    if (grouped.unknown?.length) {
+      summary.skipped.unknown += grouped.unknown.length;
+    }
+
+    for (const [giteId, items] of Object.entries(grouped)) {
+      if (giteId === 'unknown') continue;
+      const sheetName = SHEET_NAMES[giteId];
+      if (!sheetName) {
+        summary.skipped.unknown += items.length;
+        continue;
+      }
+
+      const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
+      const columns = buildSheetColumns(header);
+      const existingKeys = buildExistingReservationKeySet(rows, columns, giteId);
+      const sheetId = await getSheetId(sheetName, token);
+      const rowsToInsert = [];
+
+      for (const r of items) {
+        const baseReservation = {
+          type: r.type || 'personal',
+          checkIn: r.checkIn,
+          checkOut: r.checkOut,
+          nights: r.nights,
+          name: r.name || '',
+          payout: typeof r.payout === 'number' ? r.payout : null,
+          comment: r.comment || ''
+        };
+        const segments = splitReservationByMonth(baseReservation);
+
+        for (const seg of segments) {
+          const start = dayjs(seg.checkIn, 'YYYY-MM-DD', true);
+          const end = dayjs(seg.checkOut, 'YYYY-MM-DD', true);
+          if (!start.isValid() || !end.isValid()) {
+            summary.skipped.invalid += 1;
+            continue;
+          }
+          if (!overlapsCurrentYear(seg.checkIn, seg.checkOut)) {
+            summary.skipped.outsideYear += 1;
+            continue;
+          }
+          const key = `${giteId}|${seg.checkIn}|${seg.checkOut}`;
+          if (existingKeys.has(key)) {
+            summary.skipped.duplicate += 1;
+            continue;
+          }
+
+          existingKeys.add(key);
+          const { rowValues, payoutValue } = buildHarRowValues(seg, columns, runId);
+          rowsToInsert.push({ reservation: seg, rowValues, payoutValue });
+        }
+      }
+
+      if (rowsToInsert.length > 0) {
+        const appendResult = await appendRowsValues(
+          sheetName,
+          rowsToInsert.map(item => item.rowValues),
+          token
+        );
+        const startRow = appendResult?.startRow;
+        if (!startRow) {
+          throw new Error('Failed to resolve inserted rows');
+        }
+
+        const debutCol = toColumnLetter(columns.colDebut);
+        const finCol = toColumnLetter(columns.colFin);
+        const nuitsCol = toColumnLetter(columns.colNuits);
+        const adultesCol = toColumnLetter(columns.colAdultes);
+        const prixCol = toColumnLetter(columns.colPrixNuit);
+        const revenusCol = toColumnLetter(columns.colRevenus);
+        const adultsValue = giteId === 'liberte' ? 10 : 2;
+
+        const updates = [];
+        rowsToInsert.forEach((item, index) => {
+          const rowNumber = startRow + index;
+          updates.push({
+            range: `${sheetName}!${nuitsCol}${rowNumber}`,
+            values: [[`=${finCol}${rowNumber}-${debutCol}${rowNumber}`]]
+          });
+          updates.push({
+            range: `${sheetName}!${adultesCol}${rowNumber}`,
+            values: [[adultsValue]]
+          });
+
+          if (item.reservation.type === 'airbnb') {
+            const nights = resolveNights(item.reservation);
+            const payoutValue = typeof item.payoutValue === 'number'
+              ? item.payoutValue
+              : typeof item.reservation.payout === 'number'
+                ? item.reservation.payout
+                : null;
+            if (payoutValue != null && nights > 0) {
+              updates.push({
+                range: `${sheetName}!${prixCol}${rowNumber}`,
+                values: [[payoutValue / nights]]
+              });
+            }
+          } else if (item.reservation.type === 'personal') {
+            updates.push({
+              range: `${sheetName}!${revenusCol}${rowNumber}`,
+              values: [[`=${prixCol}${rowNumber}*${nuitsCol}${rowNumber}`]]
+            });
+          }
+        });
+
+        await batchUpdateValues(updates, token);
+        await highlightRange(sheetId, startRow, rowsToInsert.length, columns.highlightCols, token);
+
+        summary.inserted += rowsToInsert.length;
+        if (!summary.perGite[giteId]) summary.perGite[giteId] = 0;
+        summary.perGite[giteId] += rowsToInsert.length;
+        await postProcessHarSheet({ sheetName, sheetId, columns, token });
+      }
+    }
+
+    res.json({ success: true, ...summary });
+  } catch (err) {
+    console.error('Failed to import HAR:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
