@@ -14,6 +14,7 @@ const COMMENTS_URL = `${API_BASE}/api/comments-range`;
 const UPLOAD_HAR_URL = `${API_BASE}/api/upload-har`;
 const HAR_PREVIEW_URL = `${API_BASE}/api/har/preview`;
 const HAR_IMPORT_URL = `${API_BASE}/api/har/import`;
+const ICAL_PREVIEW_URL = `${API_BASE}/api/ical/preview`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
@@ -127,6 +128,12 @@ export async function previewHar(harJson) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(harJson)
   });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function previewIcal() {
+  const res = await fetch(ICAL_PREVIEW_URL, { method: 'POST' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }

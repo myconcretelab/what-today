@@ -150,6 +150,12 @@ function parseSheetDateToIso(value) {
   return null;
 }
 
+function isEmptyCell(value) {
+  if (value == null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  return false;
+}
+
 function overlapsCurrentYear(startIso, endIso) {
   if (!startIso || !endIso) return false;
   const start = dayjs(startIso, 'YYYY-MM-DD');
@@ -316,6 +322,24 @@ function buildExistingReservationKeySet(rows, columns, giteId) {
   return keys;
 }
 
+function buildExistingReservationIndex(rows, columns, giteId) {
+  const index = new Map();
+  if (!rows || !Array.isArray(rows)) return index;
+  if (columns.iDebut === -1 || columns.iFin === -1) return index;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const startIso = parseSheetDateToIso(row[columns.iDebut]);
+    const endIso = parseSheetDateToIso(row[columns.iFin]);
+    if (startIso && endIso) {
+      index.set(`${giteId}|${startIso}|${endIso}`, {
+        row,
+        rowNumber: i + 2
+      });
+    }
+  }
+  return index;
+}
+
 async function updateSingleCell(sheetName, colIndex, rowNumber, value, token) {
   const colLetter = toColumnLetter(colIndex);
   const range = `${sheetName}!${colLetter}${rowNumber}`;
@@ -408,7 +432,8 @@ function buildHarRowValues(reservation, columns, runId) {
   const rowValues = Array(rowLength).fill('');
   const startStr = formatDateFr(reservation.checkIn);
   const endStr = formatDateFr(reservation.checkOut);
-  const paymentText = reservation.type === 'airbnb' ? 'Airbnb' : 'A définir';
+  const sourceLabel = typeof reservation.source === 'string' ? reservation.source.trim() : '';
+  const paymentText = sourceLabel || (reservation.type === 'airbnb' ? 'Airbnb' : 'A définir');
   const nameValue = reservation.name || '';
   const commentValue = reservation.comment || '';
   const payoutValue = typeof reservation.payout === 'number' ? reservation.payout : '';
@@ -477,6 +502,132 @@ function splitReservationByMonth(reservation) {
   }
 
   return segments.length ? segments : [reservation];
+}
+
+async function buildPreviewResponse(flatReservations) {
+  const token = await getAccessToken();
+  const giteIds = Array.from(
+    new Set(flatReservations.map(r => r.giteId).filter(Boolean))
+  );
+  const existingByGite = {};
+  for (const giteId of giteIds) {
+    const sheetName = SHEET_NAMES[giteId];
+    const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
+    const columns = buildSheetColumns(header);
+    const index = buildExistingReservationIndex(rows, columns, giteId);
+    const keys = new Set(index.keys());
+    existingByGite[giteId] = { columns, keys, index };
+  }
+
+  const counts = {
+    total: flatReservations.length,
+    new: 0,
+    existing: 0,
+    priceMissing: 0,
+    commentMissing: 0,
+    priceCommentMissing: 0,
+    outsideYear: 0,
+    invalid: 0,
+    unknown: 0
+  };
+  const byGite = {};
+  const reservationsPreview = flatReservations.map((r, idx) => {
+    const start = dayjs(r.checkIn, 'YYYY-MM-DD', true);
+    const end = dayjs(r.checkOut, 'YYYY-MM-DD', true);
+    const key = r.giteId ? `${r.giteId}|${r.checkIn}|${r.checkOut}` : null;
+    let status = 'new';
+    let reason = '';
+    let priceMissing = false;
+    let commentMissing = false;
+    const commentValue = typeof r.comment === 'string' ? r.comment.trim() : '';
+    const hasComment = commentValue !== '';
+
+    if (!r.giteId) {
+      status = 'unknown';
+      reason = 'gite inconnu';
+      counts.unknown += 1;
+    } else if (!start.isValid() || !end.isValid()) {
+      status = 'invalid';
+      reason = 'dates invalides';
+      counts.invalid += 1;
+    } else if (!overlapsCurrentYear(r.checkIn, r.checkOut)) {
+      status = 'outside_year';
+      reason = 'hors année';
+      counts.outsideYear += 1;
+    } else if (existingByGite[r.giteId]?.keys?.has(key)) {
+      const existingEntry = existingByGite[r.giteId]?.index?.get(key);
+      const columns = existingByGite[r.giteId]?.columns;
+      if (existingEntry && columns) {
+        if (r.type === 'airbnb' && typeof r.payout === 'number') {
+          priceMissing = isEmptyCell(existingEntry.row[columns.colPrixNuit - 1])
+            || isEmptyCell(existingEntry.row[columns.colRevenus - 1]);
+        }
+        if (columns.colComment && hasComment) {
+          commentMissing = isEmptyCell(existingEntry.row[columns.colComment - 1]);
+        }
+      }
+      if (priceMissing || commentMissing) {
+        if (priceMissing && commentMissing) {
+          status = 'price_comment_missing';
+          reason = 'prix et commentaire manquants';
+          counts.priceCommentMissing += 1;
+        } else if (priceMissing) {
+          status = 'price_missing';
+          reason = 'prix manquant dans la feuille';
+          counts.priceMissing += 1;
+        } else {
+          status = 'comment_missing';
+          reason = 'commentaire manquant dans la feuille';
+          counts.commentMissing += 1;
+        }
+      } else {
+        status = 'existing';
+        reason = 'déjà présent';
+        counts.existing += 1;
+      }
+    } else {
+      counts.new += 1;
+    }
+
+    if (r.giteName) {
+      if (!byGite[r.giteName]) {
+        byGite[r.giteName] = {
+          total: 0,
+          new: 0,
+          existing: 0,
+          priceMissing: 0,
+          commentMissing: 0,
+          priceCommentMissing: 0,
+          outsideYear: 0,
+          invalid: 0,
+          unknown: 0
+        };
+      }
+      byGite[r.giteName].total += 1;
+      if (status === 'new') byGite[r.giteName].new += 1;
+      if (status === 'existing') byGite[r.giteName].existing += 1;
+      if (status === 'price_missing') byGite[r.giteName].priceMissing += 1;
+      if (status === 'comment_missing') byGite[r.giteName].commentMissing += 1;
+      if (status === 'price_comment_missing') byGite[r.giteName].priceCommentMissing += 1;
+      if (status === 'outside_year') byGite[r.giteName].outsideYear += 1;
+      if (status === 'invalid') byGite[r.giteName].invalid += 1;
+      if (status === 'unknown') byGite[r.giteName].unknown += 1;
+    }
+
+    const idRaw = `${r.giteId || 'unknown'}|${r.checkIn}|${r.checkOut}|${r.name || ''}|${r.type || ''}|${idx}`;
+    const id = crypto.createHash('sha1').update(idRaw).digest('hex').slice(0, 12);
+
+    return {
+      id,
+      ...r,
+      status,
+      reason,
+      priceMissing,
+      commentMissing
+    };
+  });
+
+  return { reservations: reservationsPreview, counts, byGite };
 }
 
 async function insertHarReservation({ reservation, columns, giteId, sheetName, sheetId, token, runId }) {
@@ -1116,6 +1267,7 @@ function extractAirbnbUrl(description) {
 // Stockage en mémoire des réservations et des erreurs
 let reservations = [];
 let erreurs = new Set();
+let icalLoadPromise = null;
 
 /**
  * Chargement et parsing de toutes les sources ical.
@@ -1199,6 +1351,37 @@ async function chargerCalendriers() {
   console.timeEnd('ical-load');
 }
 
+function startIcalLoad({ reset = false } = {}) {
+  if (reset) {
+    reservations = [];
+    erreurs = new Set();
+  }
+  if (!icalLoadPromise) {
+    const loadPromise = (async () => {
+      await chargerCalendriers();
+    })();
+    icalLoadPromise = loadPromise;
+    loadPromise.catch(err => {
+      console.error('Erreur pendant le chargement iCal:', err.message);
+    });
+    loadPromise.finally(() => {
+      if (icalLoadPromise === loadPromise) {
+        icalLoadPromise = null;
+      }
+    });
+  }
+  return icalLoadPromise;
+}
+
+async function awaitIcalLoadIfNeeded() {
+  if (!icalLoadPromise) return;
+  try {
+    await icalLoadPromise;
+  } catch (err) {
+    // L'erreur est déjà loguée, on répond avec l'état actuel.
+  }
+}
+
 function formatIcalDate(d) {
   if (!d) return null;
 
@@ -1218,11 +1401,12 @@ function formatIcalDate(d) {
 }
 
 
-// Chargement des calendriers au démarrage
-await chargerCalendriers();
+// Chargement des calendriers au démarrage (en arrière-plan)
+startIcalLoad({ reset: true });
 
 // --- Endpoint JSON ---
-app.get('/api/arrivals', (req, res) => {
+app.get('/api/arrivals', async (req, res) => {
+  await awaitIcalLoadIfNeeded();
   const today = dayjs().startOf('day');
   const startWindow = today.subtract(5, 'day');
   const endWindow = reservations.reduce((max, ev) => {
@@ -1243,9 +1427,8 @@ app.get('/api/arrivals', (req, res) => {
 
 app.post('/api/reload-icals', async (req, res) => {
   try {
-    reservations = [];
-    erreurs = new Set();
-    await chargerCalendriers();
+    await awaitIcalLoadIfNeeded();
+    await startIcalLoad({ reset: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1489,79 +1672,49 @@ app.post('/api/har/preview', async (req, res) => {
       }
     }
 
-    const token = await getAccessToken();
-    const giteIds = Array.from(new Set(flat.map(r => r.giteId).filter(Boolean)));
-    const existingByGite = {};
-    for (const giteId of giteIds) {
-      const sheetName = SHEET_NAMES[giteId];
-      const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
-      const columns = buildSheetColumns(header);
-      const keys = buildExistingReservationKeySet(rows, columns, giteId);
-      existingByGite[giteId] = { columns, keys };
-    }
-
-    const counts = {
-      total: flat.length,
-      new: 0,
-      existing: 0,
-      outsideYear: 0,
-      invalid: 0,
-      unknown: 0
-    };
-    const byGite = {};
-    const reservations = flat.map((r, idx) => {
-      const start = dayjs(r.checkIn, 'YYYY-MM-DD', true);
-      const end = dayjs(r.checkOut, 'YYYY-MM-DD', true);
-      const key = r.giteId ? `${r.giteId}|${r.checkIn}|${r.checkOut}` : null;
-      let status = 'new';
-      let reason = '';
-
-      if (!r.giteId) {
-        status = 'unknown';
-        reason = 'gite inconnu';
-        counts.unknown += 1;
-      } else if (!start.isValid() || !end.isValid()) {
-        status = 'invalid';
-        reason = 'dates invalides';
-        counts.invalid += 1;
-      } else if (!overlapsCurrentYear(r.checkIn, r.checkOut)) {
-        status = 'outside_year';
-        reason = 'hors année';
-        counts.outsideYear += 1;
-      } else if (existingByGite[r.giteId]?.keys?.has(key)) {
-        status = 'existing';
-        reason = 'déjà présent';
-        counts.existing += 1;
-      } else {
-        counts.new += 1;
-      }
-
-      if (r.giteName) {
-        if (!byGite[r.giteName]) {
-          byGite[r.giteName] = { total: 0, new: 0, existing: 0, outsideYear: 0, invalid: 0, unknown: 0 };
-        }
-        byGite[r.giteName].total += 1;
-        if (status === 'new') byGite[r.giteName].new += 1;
-        if (status === 'existing') byGite[r.giteName].existing += 1;
-        if (status === 'outside_year') byGite[r.giteName].outsideYear += 1;
-        if (status === 'invalid') byGite[r.giteName].invalid += 1;
-        if (status === 'unknown') byGite[r.giteName].unknown += 1;
-      }
-
-      const idRaw = `${r.giteId || 'unknown'}|${r.checkIn}|${r.checkOut}|${r.name || ''}|${r.type || ''}|${idx}`;
-      const id = crypto.createHash('sha1').update(idRaw).digest('hex').slice(0, 12);
-
-      return {
-        id,
-        ...r,
-        status,
-        reason
-      };
-    });
-
-    res.json({ success: true, reservations, counts, byGite });
+    const preview = await buildPreviewResponse(flat);
+    res.json({ success: true, ...preview });
   } catch (err) {
     console.error('Failed to preview HAR:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/ical/preview', async (req, res) => {
+  try {
+    await awaitIcalLoadIfNeeded();
+    const flat = [];
+    const sourceReservations = Array.isArray(reservations) ? reservations : [];
+    for (const item of sourceReservations) {
+      const giteId = item.giteId || null;
+      const giteName = item.giteNom || item.giteName || '';
+      const sheetName = giteId ? SHEET_NAMES[giteId] : null;
+      const type = item.source === 'Airbnb' ? 'airbnb' : 'personal';
+      const baseReservation = {
+        type,
+        checkIn: item.debut,
+        checkOut: item.fin,
+        nights: null,
+        name: '',
+        payout: null,
+        comment: item.resume || ''
+      };
+      const segments = splitReservationByMonth(baseReservation);
+      for (const seg of segments) {
+        flat.push({
+          giteId,
+          giteName,
+          sheetName,
+          source: item.source || '',
+          ...seg
+        });
+      }
+    }
+
+    const preview = await buildPreviewResponse(flat);
+    res.json({ success: true, ...preview });
+  } catch (err) {
+    console.error('Failed to preview ICAL:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -1589,6 +1742,7 @@ app.post('/api/har/import', async (req, res) => {
 
     const summary = {
       inserted: 0,
+      updated: 0,
       skipped: { duplicate: 0, invalid: 0, outsideYear: 0, unknown: 0 },
       perGite: {}
     };
@@ -1607,13 +1761,17 @@ app.post('/api/har/import', async (req, res) => {
 
       const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
       const columns = buildSheetColumns(header);
-      const existingKeys = buildExistingReservationKeySet(rows, columns, giteId);
+      const existingIndex = buildExistingReservationIndex(rows, columns, giteId);
+      const existingKeys = new Set(existingIndex.keys());
       const sheetId = await getSheetId(sheetName, token);
       const rowsToInsert = [];
+      const existingUpdates = [];
+      const updatedKeys = new Set();
 
       for (const r of items) {
         const baseReservation = {
           type: r.type || 'personal',
+          source: r.source || '',
           checkIn: r.checkIn,
           checkOut: r.checkOut,
           nights: r.nights,
@@ -1635,6 +1793,61 @@ app.post('/api/har/import', async (req, res) => {
             continue;
           }
           const key = `${giteId}|${seg.checkIn}|${seg.checkOut}`;
+          const existingEntry = existingIndex.get(key);
+          if (existingEntry) {
+            const prixValue = existingEntry.row[columns.colPrixNuit - 1];
+            const revenusValue = existingEntry.row[columns.colRevenus - 1];
+            const missingPrix = isEmptyCell(prixValue);
+            const missingRevenus = isEmptyCell(revenusValue);
+            const commentValue = typeof seg.comment === 'string' ? seg.comment.trim() : '';
+            const hasComment = commentValue !== '';
+            const missingComment = columns.colComment
+              && hasComment
+              && isEmptyCell(existingEntry.row[columns.colComment - 1]);
+            const canUpdatePrice = seg.type === 'airbnb' && typeof seg.payout === 'number';
+            const needsPriceUpdate = canUpdatePrice && (missingPrix || missingRevenus);
+            const needsCommentUpdate = missingComment;
+            if (needsPriceUpdate || needsCommentUpdate) {
+              if (!updatedKeys.has(key)) {
+                const rowNumber = existingEntry.rowNumber;
+                const updateStart = existingUpdates.length;
+                if (needsPriceUpdate && missingRevenus) {
+                  const revenusCol = toColumnLetter(columns.colRevenus);
+                  existingUpdates.push({
+                    range: `${sheetName}!${revenusCol}${rowNumber}`,
+                    values: [[seg.payout]]
+                  });
+                }
+                if (needsPriceUpdate && missingPrix) {
+                  const nights = resolveNights(seg);
+                  if (nights > 0) {
+                    const prixCol = toColumnLetter(columns.colPrixNuit);
+                    existingUpdates.push({
+                      range: `${sheetName}!${prixCol}${rowNumber}`,
+                      values: [[seg.payout / nights]]
+                    });
+                  }
+                }
+                if (needsCommentUpdate && columns.colComment) {
+                  const commentCol = toColumnLetter(columns.colComment);
+                  existingUpdates.push({
+                    range: `${sheetName}!${commentCol}${rowNumber}`,
+                    values: [[commentValue]]
+                  });
+                }
+                if (existingUpdates.length > updateStart) {
+                  summary.updated += 1;
+                  updatedKeys.add(key);
+                } else {
+                  summary.skipped.duplicate += 1;
+                }
+              }
+            } else {
+              summary.skipped.duplicate += 1;
+            }
+            continue;
+          }
+
           if (existingKeys.has(key)) {
             summary.skipped.duplicate += 1;
             continue;
@@ -1665,7 +1878,7 @@ app.post('/api/har/import', async (req, res) => {
         const revenusCol = toColumnLetter(columns.colRevenus);
         const adultsValue = giteId === 'liberte' ? 10 : 2;
 
-        const updates = [];
+        const updates = [...existingUpdates];
         rowsToInsert.forEach((item, index) => {
           const rowNumber = startRow + index;
           updates.push({
@@ -1705,6 +1918,8 @@ app.post('/api/har/import', async (req, res) => {
         if (!summary.perGite[giteId]) summary.perGite[giteId] = 0;
         summary.perGite[giteId] += rowsToInsert.length;
         await postProcessHarSheet({ sheetName, sheetId, columns, token });
+      } else if (existingUpdates.length > 0) {
+        await batchUpdateValues(existingUpdates, token);
       }
     }
 
