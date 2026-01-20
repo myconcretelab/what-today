@@ -639,7 +639,8 @@ function buildEmptyImportSummary() {
   };
 }
 
-async function importReservationsToSheets(incomingReservations) {
+async function importReservationsToSheets(incomingReservations, options = {}) {
+  const { allowCommentUpdate = true } = options;
   const summary = buildEmptyImportSummary();
   if (!Array.isArray(incomingReservations) || incomingReservations.length === 0) {
     return summary;
@@ -719,7 +720,7 @@ async function importReservationsToSheets(incomingReservations) {
             && isEmptyCell(existingEntry.row[columns.colComment - 1]);
           const canUpdatePrice = seg.type === 'airbnb' && typeof seg.payout === 'number';
           const needsPriceUpdate = canUpdatePrice && (missingPrix || missingRevenus);
-          const needsCommentUpdate = missingComment;
+          const needsCommentUpdate = allowCommentUpdate && missingComment;
           if (needsPriceUpdate || needsCommentUpdate) {
             if (!updatedKeys.has(key)) {
               const rowNumber = existingEntry.rowNumber;
@@ -2011,7 +2012,7 @@ app.post('/api/ical/import', async (req, res) => {
       || r.status === 'price_comment_missing'
     ));
 
-    const summary = await importReservationsToSheets(importable);
+    const summary = await importReservationsToSheets(importable, { allowCommentUpdate: false });
     recordImportLog(buildImportLogEntry({
       source: 'ical',
       selectionCount: importable.length,
