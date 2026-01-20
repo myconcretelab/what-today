@@ -1,0 +1,19 @@
+[
+  {
+    "id": "e1fcc8a3-8f4d-4177-9142-47fa5ee44472",
+    "at": "2026-01-20T15:28:14.170Z",
+    "source": "har",
+    "selectionCount": 1,
+    "inserted": 1,
+    "updated": 0,
+    "skipped": {
+      "duplicate": 0,
+      "invalid": 0,
+      "outsideYear": 0,
+      "unknown": 0
+    },
+    "perGite": {
+      "phonsine": 1
+    }
+  }
+]

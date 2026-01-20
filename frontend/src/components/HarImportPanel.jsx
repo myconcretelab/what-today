@@ -39,6 +39,21 @@ function formatSourceLabel(source) {
   return source === 'ical' ? 'ICAL' : 'HAR';
 }
 
+function parseIsoDate(isoDate) {
+  if (!isoDate || typeof isoDate !== 'string') return null;
+  const parsed = new Date(isoDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getMonthKey(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${date.getFullYear()}-${month}`;
+}
+
+function formatMonthLabel(date) {
+  return date.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+}
+
 function statusMetaList(status) {
   switch (status) {
     case 'new':
@@ -200,6 +215,55 @@ export default function HarImportPanel({ panelBg }) {
     return preview.reservations.filter(r => (showAll ? true : isCompactViewStatus(r.status)));
   }, [preview, showAll]);
 
+  const groupedReservations = useMemo(() => {
+    if (displayedReservations.length === 0) return [];
+    const monthMap = new Map();
+    displayedReservations.forEach(reservation => {
+      const checkInDate = parseIsoDate(reservation.checkIn);
+      const monthKey = checkInDate ? getMonthKey(checkInDate) : 'unknown';
+      const monthLabel = checkInDate ? formatMonthLabel(checkInDate) : 'Date inconnue';
+      const monthStart = checkInDate
+        ? new Date(checkInDate.getFullYear(), checkInDate.getMonth(), 1)
+        : null;
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          key: monthKey,
+          label: monthLabel,
+          monthStart,
+          gites: new Map()
+        });
+      }
+      const monthGroup = monthMap.get(monthKey);
+      const giteName = reservation.giteName || 'Gîte inconnu';
+      if (!monthGroup.gites.has(giteName)) {
+        monthGroup.gites.set(giteName, { name: giteName, reservations: [] });
+      }
+      monthGroup.gites.get(giteName).reservations.push(reservation);
+    });
+
+    return Array.from(monthMap.values())
+      .sort((a, b) => {
+        if (a.monthStart && b.monthStart) return a.monthStart - b.monthStart;
+        if (a.monthStart) return -1;
+        if (b.monthStart) return 1;
+        return a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' });
+      })
+      .map(monthGroup => ({
+        key: monthGroup.key,
+        label: monthGroup.label,
+        gites: Array.from(monthGroup.gites.values()).sort((a, b) =>
+          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+        )
+      }));
+  }, [displayedReservations]);
+
+  const orderedReservations = useMemo(() => {
+    if (groupedReservations.length === 0) return [];
+    return groupedReservations.flatMap(monthGroup =>
+      monthGroup.gites.flatMap(giteGroup => giteGroup.reservations)
+    );
+  }, [groupedReservations]);
+
   const priceMissingCount = (preview?.counts?.priceMissing || 0)
     + (preview?.counts?.priceCommentMissing || 0);
   const commentMissingCount = (preview?.counts?.commentMissing || 0)
@@ -342,7 +406,7 @@ export default function HarImportPanel({ panelBg }) {
 
   useEffect(() => {
     if (!pendingScrollStatus) return;
-    const match = displayedReservations.find(r => matchesStatusGroup(r.status, pendingScrollStatus));
+    const match = orderedReservations.find(r => matchesStatusGroup(r.status, pendingScrollStatus));
     if (!match) {
       setPendingScrollStatus(null);
       return;
@@ -352,7 +416,7 @@ export default function HarImportPanel({ panelBg }) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     setPendingScrollStatus(null);
-  }, [pendingScrollStatus, displayedReservations]);
+  }, [pendingScrollStatus, orderedReservations]);
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
@@ -502,64 +566,87 @@ export default function HarImportPanel({ panelBg }) {
           <Typography variant="subtitle1" sx={{ mb: 1 }}>
             Réservations détectées ({displayedReservations.length})
           </Typography>
-          {displayedReservations.map(r => {
-            const metaList = statusMetaList(r.status);
-            const isSelectable = isSelectableStatus(r.status);
-            const isChecked = !!selectedIds[r.id];
-            const typeLabel = r.source || (r.type === 'airbnb' ? 'Airbnb' : 'Personnel');
-            const showReason = r.reason && (!isSelectable || isMissingStatus(r.status));
-            return (
-              <Card
-                key={r.id}
-                id={`reservation-${r.id}`}
-                sx={{ mb: 1, boxShadow: 'none', bgcolor: colorTheme.cardBg }}
-              >
-                <CardContent sx={{ display: 'flex', gap: 2 }}>
-                  <Checkbox
-                    checked={isChecked}
-                    onChange={() => handleToggleReservation(r.id)}
-                    disabled={!isSelectable}
-                    sx={{ mt: -0.5 }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'center' }}>
-                      <Typography variant="subtitle1">
-                        {r.giteName || 'Gîte inconnu'} · {formatDisplayDate(r.checkIn)} → {formatDisplayDate(r.checkOut)}
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
-                        {metaList.map((meta, index) => (
-                          <Chip
-                            key={`${r.id}-${meta.label}-${index}`}
-                            icon={meta.icon}
-                            label={meta.label}
-                            color={meta.color}
-                            variant="outlined"
-                            size="small"
+          {groupedReservations.map(monthGroup => (
+            <Box key={monthGroup.key} sx={{ mb: 2 }}>
+              <Divider sx={{ my: 1 }}>
+                <Typography variant="subtitle2" sx={{ opacity: 0.7, textTransform: 'capitalize' }}>
+                  {monthGroup.label}
+                </Typography>
+              </Divider>
+              {monthGroup.gites.map(giteGroup => (
+                <Box key={`${monthGroup.key}-${giteGroup.name}`} sx={{ mb: 1.5 }}>
+                  <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 600 }}>
+                    {giteGroup.name}
+                  </Typography>
+                  {giteGroup.reservations.map(r => {
+                    const metaList = statusMetaList(r.status);
+                    const isSelectable = isSelectableStatus(r.status);
+                    const isChecked = !!selectedIds[r.id];
+                    const typeLabel = r.source || (r.type === 'airbnb' ? 'Airbnb' : 'Personnel');
+                    const showReason = r.reason && (!isSelectable || isMissingStatus(r.status));
+                    return (
+                      <Card
+                        key={r.id}
+                        id={`reservation-${r.id}`}
+                        sx={{ mb: 1, boxShadow: 'none', bgcolor: colorTheme.cardBg }}
+                      >
+                        <CardContent sx={{ display: 'flex', gap: 2 }}>
+                          <Checkbox
+                            checked={isChecked}
+                            onChange={() => handleToggleReservation(r.id)}
+                            disabled={!isSelectable}
+                            sx={{ mt: -0.5 }}
                           />
-                        ))}
-                      </Box>
-                    </Box>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {r.name ? `Nom: ${r.name}` : 'Nom non renseigné'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {typeLabel} · {r.payout != null ? `Payout: ${r.payout}€` : 'Payout: n/a'}
-                    </Typography>
-                    {r.comment && (
-                      <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.8 }}>
-                        Commentaire: {r.comment}
-                      </Typography>
-                    )}
-                    {showReason && (
-                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.7 }}>
-                        {r.reason}
-                      </Typography>
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
-            );
-          })}
+                          <Box sx={{ flex: 1 }}>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: 1,
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Typography variant="subtitle1">
+                                {r.giteName || 'Gîte inconnu'} · {formatDisplayDate(r.checkIn)} → {formatDisplayDate(r.checkOut)}
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
+                                {metaList.map((meta, index) => (
+                                  <Chip
+                                    key={`${r.id}-${meta.label}-${index}`}
+                                    icon={meta.icon}
+                                    label={meta.label}
+                                    color={meta.color}
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                ))}
+                              </Box>
+                            </Box>
+                            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                              {r.name ? `Nom: ${r.name}` : 'Nom non renseigné'}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                              {typeLabel} · {r.payout != null ? `Payout: ${r.payout}€` : 'Payout: n/a'}
+                            </Typography>
+                            {r.comment && (
+                              <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.8 }}>
+                                Commentaire: {r.comment}
+                              </Typography>
+                            )}
+                            {showReason && (
+                              <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.7 }}>
+                                {r.reason}
+                              </Typography>
+                            )}
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              ))}
+            </Box>
+          ))}
         </Box>
       )}
 
