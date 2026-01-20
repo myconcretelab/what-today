@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import {
   Box,
@@ -18,7 +18,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { previewHar, previewIcal, importHarReservations } from '../services/api';
+import { previewHar, previewIcal, importHarReservations, fetchImportLog } from '../services/api';
 import { useThemeColors } from '../theme.jsx';
 
 function formatDisplayDate(isoDate) {
@@ -28,27 +28,72 @@ function formatDisplayDate(isoDate) {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-function statusMeta(status) {
+function formatLogDateTime(isoDate) {
+  if (!isoDate || typeof isoDate !== 'string') return '';
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) return isoDate;
+  return parsed.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function formatSourceLabel(source) {
+  return source === 'ical' ? 'ICAL' : 'HAR';
+}
+
+function statusMetaList(status) {
   switch (status) {
     case 'new':
-      return { label: 'Nouvelle', color: 'success', icon: <CheckCircleIcon /> };
+      return [{ label: 'Nouvelle', color: 'success', icon: <CheckCircleIcon /> }];
     case 'existing':
-      return { label: 'Déjà présente', color: 'warning', icon: <InfoOutlinedIcon /> };
+      return [{ label: 'Déjà présente', color: 'warning', icon: <InfoOutlinedIcon /> }];
     case 'price_missing':
-      return { label: 'Prix manquant', color: 'warning', icon: <InfoOutlinedIcon /> };
+      return [{ label: 'Prix manquant', color: 'warning', icon: <InfoOutlinedIcon /> }];
     case 'comment_missing':
-      return { label: 'Commentaire manquant', color: 'warning', icon: <InfoOutlinedIcon /> };
+      return [{ label: 'Commentaire manquant', color: 'warning', icon: <InfoOutlinedIcon /> }];
     case 'price_comment_missing':
-      return { label: 'Prix et commentaire manquants', color: 'warning', icon: <InfoOutlinedIcon /> };
+      return [
+        { label: 'Prix manquant', color: 'warning', icon: <InfoOutlinedIcon /> },
+        { label: 'Commentaire manquant', color: 'warning', icon: <InfoOutlinedIcon /> }
+      ];
     case 'outside_year':
-      return { label: 'Hors année', color: 'info', icon: <InfoOutlinedIcon /> };
+      return [{ label: 'Hors année', color: 'info', icon: <InfoOutlinedIcon /> }];
     case 'invalid':
-      return { label: 'Dates invalides', color: 'error', icon: <ErrorOutlineIcon /> };
+      return [{ label: 'Dates invalides', color: 'error', icon: <ErrorOutlineIcon /> }];
     case 'unknown':
-      return { label: 'Gîte inconnu', color: 'error', icon: <ErrorOutlineIcon /> };
+      return [{ label: 'Gîte inconnu', color: 'error', icon: <ErrorOutlineIcon /> }];
     default:
-      return { label: 'Statut inconnu', color: 'default', icon: <InfoOutlinedIcon /> };
+      return [{ label: 'Statut inconnu', color: 'default', icon: <InfoOutlinedIcon /> }];
   }
+}
+
+function isSelectableStatus(status) {
+  return status === 'new'
+    || status === 'price_missing'
+    || status === 'comment_missing'
+    || status === 'price_comment_missing';
+}
+
+function isMissingStatus(status) {
+  return status === 'price_missing'
+    || status === 'comment_missing'
+    || status === 'price_comment_missing';
+}
+
+function isCompactViewStatus(status) {
+  return status === 'new' || isMissingStatus(status);
+}
+
+function matchesStatusGroup(status, group) {
+  if (group === 'price_missing') {
+    return status === 'price_missing' || status === 'price_comment_missing';
+  }
+  if (group === 'comment_missing') {
+    return status === 'comment_missing' || status === 'price_comment_missing';
+  }
+  return status === group;
+}
+
+function isCompactViewGroup(group) {
+  return group === 'new' || group === 'price_missing' || group === 'comment_missing';
 }
 
 export default function HarImportPanel({ panelBg }) {
@@ -67,6 +112,10 @@ export default function HarImportPanel({ panelBg }) {
   const [importStage, setImportStage] = useState('idle');
   const [error, setError] = useState('');
   const [importResult, setImportResult] = useState(null);
+  const [importLog, setImportLog] = useState(null);
+  const [isFetchingLog, setIsFetchingLog] = useState(false);
+  const [logError, setLogError] = useState('');
+  const [pendingScrollStatus, setPendingScrollStatus] = useState(null);
 
   const isIcalPreview = previewSource === 'ical';
   const previewSteps = isIcalPreview
@@ -139,12 +188,7 @@ export default function HarImportPanel({ panelBg }) {
 
   const selectableCount = useMemo(() => {
     if (!preview?.reservations) return 0;
-    return preview.reservations.filter(
-      r => r.status === 'new'
-        || r.status === 'price_missing'
-        || r.status === 'comment_missing'
-        || r.status === 'price_comment_missing'
-    ).length;
+    return preview.reservations.filter(r => isSelectableStatus(r.status)).length;
   }, [preview]);
 
   const selectedCount = useMemo(() => {
@@ -153,13 +197,18 @@ export default function HarImportPanel({ panelBg }) {
 
   const displayedReservations = useMemo(() => {
     if (!preview?.reservations) return [];
-    return preview.reservations.filter(r => (
-      showAll ? true : (r.status === 'new'
-        || r.status === 'price_missing'
-        || r.status === 'comment_missing'
-        || r.status === 'price_comment_missing')
-    ));
+    return preview.reservations.filter(r => (showAll ? true : isCompactViewStatus(r.status)));
   }, [preview, showAll]);
+
+  const priceMissingCount = (preview?.counts?.priceMissing || 0)
+    + (preview?.counts?.priceCommentMissing || 0);
+  const commentMissingCount = (preview?.counts?.commentMissing || 0)
+    + (preview?.counts?.priceCommentMissing || 0);
+  const totalCount = preview?.counts?.total || 0;
+  const newCount = preview?.counts?.new || 0;
+  const existingCount = preview?.counts?.existing || 0;
+  const outsideYearCount = preview?.counts?.outsideYear || 0;
+  const invalidCount = preview?.counts?.invalid || 0;
 
   const handlePickFile = () => {
     fileInputRef.current?.click();
@@ -187,12 +236,7 @@ export default function HarImportPanel({ panelBg }) {
       setPreview(result);
       const nextSelected = {};
       (result.reservations || []).forEach(r => {
-        if (
-          r.status === 'new'
-          || r.status === 'price_missing'
-          || r.status === 'comment_missing'
-          || r.status === 'price_comment_missing'
-        ) nextSelected[r.id] = true;
+        if (isSelectableStatus(r.status)) nextSelected[r.id] = true;
       });
       setSelectedIds(nextSelected);
       setPreviewStage('done');
@@ -223,12 +267,7 @@ export default function HarImportPanel({ panelBg }) {
       setPreview(result);
       const nextSelected = {};
       (result.reservations || []).forEach(r => {
-        if (
-          r.status === 'new'
-          || r.status === 'price_missing'
-          || r.status === 'comment_missing'
-          || r.status === 'price_comment_missing'
-        ) nextSelected[r.id] = true;
+        if (isSelectableStatus(r.status)) nextSelected[r.id] = true;
       });
       setSelectedIds(nextSelected);
       setPreviewStage('done');
@@ -246,12 +285,7 @@ export default function HarImportPanel({ panelBg }) {
     if (!preview?.reservations) return;
     const nextSelected = {};
     preview.reservations.forEach(r => {
-      if (
-        r.status === 'new'
-        || r.status === 'price_missing'
-        || r.status === 'comment_missing'
-        || r.status === 'price_comment_missing'
-      ) nextSelected[r.id] = true;
+      if (isSelectableStatus(r.status)) nextSelected[r.id] = true;
     });
     setSelectedIds(nextSelected);
   };
@@ -284,6 +318,41 @@ export default function HarImportPanel({ panelBg }) {
       setIsImporting(false);
     }
   };
+
+  const handleFetchImportLog = async () => {
+    setIsFetchingLog(true);
+    setLogError('');
+    try {
+      const result = await fetchImportLog(5);
+      setImportLog(Array.isArray(result?.entries) ? result.entries : []);
+    } catch (err) {
+      setLogError('Impossible de charger le résumé des imports.');
+    } finally {
+      setIsFetchingLog(false);
+    }
+  };
+
+  const handleScrollToStatus = status => {
+    if (!preview?.reservations) return;
+    if (!showAll && !isCompactViewGroup(status)) {
+      setShowAll(true);
+    }
+    setPendingScrollStatus(status);
+  };
+
+  useEffect(() => {
+    if (!pendingScrollStatus) return;
+    const match = displayedReservations.find(r => matchesStatusGroup(r.status, pendingScrollStatus));
+    if (!match) {
+      setPendingScrollStatus(null);
+      return;
+    }
+    const element = document.getElementById(`reservation-${match.id}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    setPendingScrollStatus(null);
+  }, [pendingScrollStatus, displayedReservations]);
 
   return (
     <Box sx={{ p: 2, pl: { xs: 1, sm: 2 } }}>
@@ -363,14 +432,43 @@ export default function HarImportPanel({ panelBg }) {
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
               <Chip variant="outlined" label={`Source: ${isIcalPreview ? 'ICAL' : 'HAR'}`} />
-              <Chip label={`Total: ${preview.counts?.total || 0}`} />
-              <Chip color="success" label={`Nouvelles: ${preview.counts?.new || 0}`} />
-              <Chip color="warning" label={`Déjà présentes: ${preview.counts?.existing || 0}`} />
-              <Chip color="warning" label={`Prix manquant: ${preview.counts?.priceMissing || 0}`} />
-              <Chip color="warning" label={`Commentaire manquant: ${preview.counts?.commentMissing || 0}`} />
-              <Chip color="warning" label={`Prix et commentaire manquants: ${preview.counts?.priceCommentMissing || 0}`} />
-              <Chip color="info" label={`Hors année: ${preview.counts?.outsideYear || 0}`} />
-              <Chip color="error" label={`Invalides: ${preview.counts?.invalid || 0}`} />
+              <Chip label={`Total: ${totalCount}`} />
+              <Chip
+                color="success"
+                label={`Nouvelles: ${newCount}`}
+                clickable={newCount > 0}
+                onClick={newCount > 0 ? () => handleScrollToStatus('new') : undefined}
+              />
+              <Chip
+                color="warning"
+                label={`Déjà présentes: ${existingCount}`}
+                clickable={existingCount > 0}
+                onClick={existingCount > 0 ? () => handleScrollToStatus('existing') : undefined}
+              />
+              <Chip
+                color="warning"
+                label={`Prix manquant: ${priceMissingCount}`}
+                clickable={priceMissingCount > 0}
+                onClick={priceMissingCount > 0 ? () => handleScrollToStatus('price_missing') : undefined}
+              />
+              <Chip
+                color="warning"
+                label={`Commentaire manquant: ${commentMissingCount}`}
+                clickable={commentMissingCount > 0}
+                onClick={commentMissingCount > 0 ? () => handleScrollToStatus('comment_missing') : undefined}
+              />
+              <Chip
+                color="info"
+                label={`Hors année: ${outsideYearCount}`}
+                clickable={outsideYearCount > 0}
+                onClick={outsideYearCount > 0 ? () => handleScrollToStatus('outside_year') : undefined}
+              />
+              <Chip
+                color="error"
+                label={`Invalides: ${invalidCount}`}
+                clickable={invalidCount > 0}
+                onClick={invalidCount > 0 ? () => handleScrollToStatus('invalid') : undefined}
+              />
             </Box>
             {preview.byGite && (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
@@ -405,19 +503,17 @@ export default function HarImportPanel({ panelBg }) {
             Réservations détectées ({displayedReservations.length})
           </Typography>
           {displayedReservations.map(r => {
-            const meta = statusMeta(r.status);
-            const isSelectable = r.status === 'new'
-              || r.status === 'price_missing'
-              || r.status === 'comment_missing'
-              || r.status === 'price_comment_missing';
+            const metaList = statusMetaList(r.status);
+            const isSelectable = isSelectableStatus(r.status);
             const isChecked = !!selectedIds[r.id];
             const typeLabel = r.source || (r.type === 'airbnb' ? 'Airbnb' : 'Personnel');
-            const showReason = r.reason && (!isSelectable
-              || r.status === 'price_missing'
-              || r.status === 'comment_missing'
-              || r.status === 'price_comment_missing');
+            const showReason = r.reason && (!isSelectable || isMissingStatus(r.status));
             return (
-              <Card key={r.id} sx={{ mb: 1, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
+              <Card
+                key={r.id}
+                id={`reservation-${r.id}`}
+                sx={{ mb: 1, boxShadow: 'none', bgcolor: colorTheme.cardBg }}
+              >
                 <CardContent sx={{ display: 'flex', gap: 2 }}>
                   <Checkbox
                     checked={isChecked}
@@ -426,17 +522,22 @@ export default function HarImportPanel({ panelBg }) {
                     sx={{ mt: -0.5 }}
                   />
                   <Box sx={{ flex: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'center' }}>
                       <Typography variant="subtitle1">
                         {r.giteName || 'Gîte inconnu'} · {formatDisplayDate(r.checkIn)} → {formatDisplayDate(r.checkOut)}
                       </Typography>
-                      <Chip
-                        icon={meta.icon}
-                        label={meta.label}
-                        color={meta.color}
-                        variant="outlined"
-                        size="small"
-                      />
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
+                        {metaList.map((meta, index) => (
+                          <Chip
+                            key={`${r.id}-${meta.label}-${index}`}
+                            icon={meta.icon}
+                            label={meta.label}
+                            color={meta.color}
+                            variant="outlined"
+                            size="small"
+                          />
+                        ))}
+                      </Box>
                     </Box>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                       {r.name ? `Nom: ${r.name}` : 'Nom non renseigné'}
@@ -511,6 +612,59 @@ export default function HarImportPanel({ panelBg }) {
           </CardContent>
         </Card>
       )}
+
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="subtitle1">
+              Résumé des imports
+            </Typography>
+            <Button variant="outlined" onClick={handleFetchImportLog} disabled={isFetchingLog}>
+              {isFetchingLog ? 'Chargement...' : 'Afficher le dernier import'}
+            </Button>
+          </Box>
+          {logError && (
+            <Typography variant="body2" sx={{ mt: 1, color: 'error.main' }}>
+              {logError}
+            </Typography>
+          )}
+          {Array.isArray(importLog) && importLog.length === 0 && (
+            <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+              Aucun import enregistré.
+            </Typography>
+          )}
+          {Array.isArray(importLog) && importLog.length > 0 && (
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {importLog.map((entry, index) => {
+                const skipped = entry?.skipped || {};
+                const selectionCount = Number.isFinite(entry?.selectionCount) ? entry.selectionCount : 0;
+                const inserted = Number.isFinite(entry?.inserted) ? entry.inserted : 0;
+                const updated = Number.isFinite(entry?.updated) ? entry.updated : 0;
+                const entryKey = entry?.id || entry?.at || `${entry?.source || 'import'}-${index}`;
+                return (
+                  <Box
+                    key={entryKey}
+                    sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                      <Chip label={formatSourceLabel(entry?.source)} size="small" variant="outlined" />
+                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                        {formatLogDateTime(entry?.at)}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {selectionCount} sélectionnée(s) · {inserted} ajoutée(s) · {updated} mise(s) à jour
+                    </Typography>
+                    <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.7 }}>
+                      Ignorées: doublons {skipped.duplicate || 0}, invalides {skipped.invalid || 0}, hors année {skipped.outsideYear || 0}, inconnues {skipped.unknown || 0}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
     </Box>
   );
 }

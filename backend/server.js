@@ -630,6 +630,215 @@ async function buildPreviewResponse(flatReservations) {
   return { reservations: reservationsPreview, counts, byGite };
 }
 
+function buildEmptyImportSummary() {
+  return {
+    inserted: 0,
+    updated: 0,
+    skipped: { duplicate: 0, invalid: 0, outsideYear: 0, unknown: 0 },
+    perGite: {}
+  };
+}
+
+async function importReservationsToSheets(incomingReservations) {
+  const summary = buildEmptyImportSummary();
+  if (!Array.isArray(incomingReservations) || incomingReservations.length === 0) {
+    return summary;
+  }
+
+  const token = await getAccessToken();
+  const runId = new Date().toISOString();
+  const grouped = {};
+
+  for (const reservation of incomingReservations) {
+    const giteId = reservation.giteId || resolveGiteId(reservation.giteName || reservation.listingName);
+    if (!giteId) {
+      if (!grouped.unknown) grouped.unknown = [];
+      grouped.unknown.push(reservation);
+      continue;
+    }
+    if (!grouped[giteId]) grouped[giteId] = [];
+    grouped[giteId].push({ ...reservation, giteId });
+  }
+
+  if (grouped.unknown?.length) {
+    summary.skipped.unknown += grouped.unknown.length;
+  }
+
+  for (const [giteId, items] of Object.entries(grouped)) {
+    if (giteId === 'unknown') continue;
+    const sheetName = SHEET_NAMES[giteId];
+    if (!sheetName) {
+      summary.skipped.unknown += items.length;
+      continue;
+    }
+
+    const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
+    const columns = buildSheetColumns(header);
+    const existingIndex = buildExistingReservationIndex(rows, columns, giteId);
+    const existingKeys = new Set(existingIndex.keys());
+    const sheetId = await getSheetId(sheetName, token);
+    const rowsToInsert = [];
+    const existingUpdates = [];
+    const updatedKeys = new Set();
+
+    for (const r of items) {
+      const baseReservation = {
+        type: r.type || 'personal',
+        source: r.source || '',
+        checkIn: r.checkIn,
+        checkOut: r.checkOut,
+        nights: r.nights,
+        name: r.name || '',
+        payout: typeof r.payout === 'number' ? r.payout : null,
+        comment: r.comment || ''
+      };
+      const segments = splitReservationByMonth(baseReservation);
+
+      for (const seg of segments) {
+        const start = dayjs(seg.checkIn, 'YYYY-MM-DD', true);
+        const end = dayjs(seg.checkOut, 'YYYY-MM-DD', true);
+        if (!start.isValid() || !end.isValid()) {
+          summary.skipped.invalid += 1;
+          continue;
+        }
+        if (!overlapsCurrentYear(seg.checkIn, seg.checkOut)) {
+          summary.skipped.outsideYear += 1;
+          continue;
+        }
+        const key = `${giteId}|${seg.checkIn}|${seg.checkOut}`;
+        const existingEntry = existingIndex.get(key);
+        if (existingEntry) {
+          const prixValue = existingEntry.row[columns.colPrixNuit - 1];
+          const revenusValue = existingEntry.row[columns.colRevenus - 1];
+          const missingPrix = isEmptyCell(prixValue);
+          const missingRevenus = isEmptyCell(revenusValue);
+          const commentValue = typeof seg.comment === 'string' ? seg.comment.trim() : '';
+          const hasComment = commentValue !== '';
+          const missingComment = columns.colComment
+            && hasComment
+            && isEmptyCell(existingEntry.row[columns.colComment - 1]);
+          const canUpdatePrice = seg.type === 'airbnb' && typeof seg.payout === 'number';
+          const needsPriceUpdate = canUpdatePrice && (missingPrix || missingRevenus);
+          const needsCommentUpdate = missingComment;
+          if (needsPriceUpdate || needsCommentUpdate) {
+            if (!updatedKeys.has(key)) {
+              const rowNumber = existingEntry.rowNumber;
+              const updateStart = existingUpdates.length;
+              if (needsPriceUpdate && missingRevenus) {
+                const revenusCol = toColumnLetter(columns.colRevenus);
+                existingUpdates.push({
+                  range: `${sheetName}!${revenusCol}${rowNumber}`,
+                  values: [[seg.payout]]
+                });
+              }
+              if (needsPriceUpdate && missingPrix) {
+                const nights = resolveNights(seg);
+                if (nights > 0) {
+                  const prixCol = toColumnLetter(columns.colPrixNuit);
+                  existingUpdates.push({
+                    range: `${sheetName}!${prixCol}${rowNumber}`,
+                    values: [[seg.payout / nights]]
+                  });
+                }
+              }
+              if (needsCommentUpdate && columns.colComment) {
+                const commentCol = toColumnLetter(columns.colComment);
+                existingUpdates.push({
+                  range: `${sheetName}!${commentCol}${rowNumber}`,
+                  values: [[commentValue]]
+                });
+              }
+              if (existingUpdates.length > updateStart) {
+                summary.updated += 1;
+                updatedKeys.add(key);
+              } else {
+                summary.skipped.duplicate += 1;
+              }
+            }
+          } else {
+            summary.skipped.duplicate += 1;
+          }
+          continue;
+        }
+
+        if (existingKeys.has(key)) {
+          summary.skipped.duplicate += 1;
+          continue;
+        }
+
+        existingKeys.add(key);
+        const { rowValues, payoutValue } = buildHarRowValues(seg, columns, runId);
+        rowsToInsert.push({ reservation: seg, rowValues, payoutValue });
+      }
+    }
+
+    if (rowsToInsert.length > 0) {
+      const appendResult = await appendRowsValues(
+        sheetName,
+        rowsToInsert.map(item => item.rowValues),
+        token
+      );
+      const startRow = appendResult?.startRow;
+      if (!startRow) {
+        throw new Error('Failed to resolve inserted rows');
+      }
+
+      const debutCol = toColumnLetter(columns.colDebut);
+      const finCol = toColumnLetter(columns.colFin);
+      const nuitsCol = toColumnLetter(columns.colNuits);
+      const adultesCol = toColumnLetter(columns.colAdultes);
+      const prixCol = toColumnLetter(columns.colPrixNuit);
+      const revenusCol = toColumnLetter(columns.colRevenus);
+      const adultsValue = giteId === 'liberte' ? 10 : 2;
+
+      const updates = [...existingUpdates];
+      rowsToInsert.forEach((item, index) => {
+        const rowNumber = startRow + index;
+        updates.push({
+          range: `${sheetName}!${nuitsCol}${rowNumber}`,
+          values: [[`=${finCol}${rowNumber}-${debutCol}${rowNumber}`]]
+        });
+        updates.push({
+          range: `${sheetName}!${adultesCol}${rowNumber}`,
+          values: [[adultsValue]]
+        });
+
+        if (item.reservation.type === 'airbnb') {
+          const nights = resolveNights(item.reservation);
+          const payoutValue = typeof item.payoutValue === 'number'
+            ? item.payoutValue
+            : typeof item.reservation.payout === 'number'
+              ? item.reservation.payout
+              : null;
+          if (payoutValue != null && nights > 0) {
+            updates.push({
+              range: `${sheetName}!${prixCol}${rowNumber}`,
+              values: [[payoutValue / nights]]
+            });
+          }
+        } else if (item.reservation.type === 'personal') {
+          updates.push({
+            range: `${sheetName}!${revenusCol}${rowNumber}`,
+            values: [[`=${prixCol}${rowNumber}*${nuitsCol}${rowNumber}`]]
+          });
+        }
+      });
+
+      await batchUpdateValues(updates, token);
+      await highlightRange(sheetId, startRow, rowsToInsert.length, columns.highlightCols, token);
+
+      summary.inserted += rowsToInsert.length;
+      if (!summary.perGite[giteId]) summary.perGite[giteId] = 0;
+      summary.perGite[giteId] += rowsToInsert.length;
+      await postProcessHarSheet({ sheetName, sheetId, columns, token });
+    } else if (existingUpdates.length > 0) {
+      await batchUpdateValues(existingUpdates, token);
+    }
+  }
+
+  return summary;
+}
+
 async function insertHarReservation({ reservation, columns, giteId, sheetName, sheetId, token, runId }) {
   const { rowValues, payoutValue } = buildHarRowValues(reservation, columns, runId);
   const rowNumber = await appendRowValues(sheetName, rowValues, token);
@@ -852,6 +1061,9 @@ const STATUS_FILE = path.join(__dirname, 'statuses.json');
 const DATA_FILE = path.join(__dirname, 'data.json');
 // Fichier de stockage du cache des commentaires Google Sheets
 const COMMENTS_FILE = path.join(__dirname, 'comments-cache.json');
+// Fichier de stockage des résumés d'import
+const IMPORT_LOG_FILE = path.join(__dirname, 'import-log.json');
+const IMPORT_LOG_LIMIT = 20;
 
 function readStatuses() {
   if (!fs.existsSync(STATUS_FILE)) return {};
@@ -923,6 +1135,58 @@ function writeCommentsCache(cache) {
     fs.writeFileSync(COMMENTS_FILE, JSON.stringify(cache, null, 2), 'utf-8');
   } catch (e) {
     console.error('Failed to write comments cache:', e.message);
+  }
+}
+
+function readImportLog() {
+  try {
+    if (!fs.existsSync(IMPORT_LOG_FILE)) return [];
+    const raw = fs.readFileSync(IMPORT_LOG_FILE, 'utf-8');
+    if (!raw || !raw.trim()) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Failed to read import log:', e.message);
+    return [];
+  }
+}
+
+function writeImportLog(entries) {
+  fs.writeFileSync(IMPORT_LOG_FILE, JSON.stringify(entries, null, 2));
+}
+
+function appendImportLog(entry) {
+  const log = readImportLog();
+  log.unshift(entry);
+  const trimmed = log.slice(0, IMPORT_LOG_LIMIT);
+  writeImportLog(trimmed);
+  return trimmed;
+}
+
+function buildImportLogEntry({ source, selectionCount, summary }) {
+  const skipped = summary?.skipped || {};
+  return {
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    source,
+    selectionCount: Number.isFinite(selectionCount) ? selectionCount : 0,
+    inserted: summary?.inserted || 0,
+    updated: summary?.updated || 0,
+    skipped: {
+      duplicate: skipped.duplicate || 0,
+      invalid: skipped.invalid || 0,
+      outsideYear: skipped.outsideYear || 0,
+      unknown: skipped.unknown || 0
+    },
+    perGite: summary?.perGite || {}
+  };
+}
+
+function recordImportLog(entry) {
+  try {
+    appendImportLog(entry);
+  } catch (e) {
+    console.error('Failed to write import log:', e.message);
   }
 }
 
@@ -1521,6 +1785,15 @@ app.post('/api/statuses/:id', (req, res) => {
   res.json(statuses[req.params.id]);
 });
 
+app.get('/api/import-log', (req, res) => {
+  const rawLimit = parseInt(req.query.limit, 10);
+  const log = readImportLog();
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(rawLimit, IMPORT_LOG_LIMIT)
+    : 5;
+  res.json({ entries: log.slice(0, limit), total: log.length });
+});
+
 // Récupération des commentaires pour une plage de dates
 app.get('/api/comments-range', async (req, res) => {
   const { start, end } = req.query;
@@ -1680,37 +1953,41 @@ app.post('/api/har/preview', async (req, res) => {
   }
 });
 
+function buildIcalFlatReservations() {
+  const flat = [];
+  const sourceReservations = Array.isArray(reservations) ? reservations : [];
+  for (const item of sourceReservations) {
+    const giteId = item.giteId || null;
+    const giteName = item.giteNom || item.giteName || '';
+    const sheetName = giteId ? SHEET_NAMES[giteId] : null;
+    const type = item.source === 'Airbnb' ? 'airbnb' : 'personal';
+    const baseReservation = {
+      type,
+      checkIn: item.debut,
+      checkOut: item.fin,
+      nights: null,
+      name: '',
+      payout: null,
+      comment: item.resume || ''
+    };
+    const segments = splitReservationByMonth(baseReservation);
+    for (const seg of segments) {
+      flat.push({
+        giteId,
+        giteName,
+        sheetName,
+        source: item.source || '',
+        ...seg
+      });
+    }
+  }
+  return flat;
+}
+
 app.post('/api/ical/preview', async (req, res) => {
   try {
     await awaitIcalLoadIfNeeded();
-    const flat = [];
-    const sourceReservations = Array.isArray(reservations) ? reservations : [];
-    for (const item of sourceReservations) {
-      const giteId = item.giteId || null;
-      const giteName = item.giteNom || item.giteName || '';
-      const sheetName = giteId ? SHEET_NAMES[giteId] : null;
-      const type = item.source === 'Airbnb' ? 'airbnb' : 'personal';
-      const baseReservation = {
-        type,
-        checkIn: item.debut,
-        checkOut: item.fin,
-        nights: null,
-        name: '',
-        payout: null,
-        comment: item.resume || ''
-      };
-      const segments = splitReservationByMonth(baseReservation);
-      for (const seg of segments) {
-        flat.push({
-          giteId,
-          giteName,
-          sheetName,
-          source: item.source || '',
-          ...seg
-        });
-      }
-    }
-
+    const flat = buildIcalFlatReservations();
     const preview = await buildPreviewResponse(flat);
     res.json({ success: true, ...preview });
   } catch (err) {
@@ -1719,210 +1996,47 @@ app.post('/api/ical/preview', async (req, res) => {
   }
 });
 
+app.post('/api/ical/import', async (req, res) => {
+  try {
+    await awaitIcalLoadIfNeeded();
+    await startIcalLoad({ reset: true });
+    await awaitIcalLoadIfNeeded();
+
+    const flat = buildIcalFlatReservations();
+    const preview = await buildPreviewResponse(flat);
+    const importable = (preview.reservations || []).filter(r => (
+      r.status === 'new'
+      || r.status === 'price_missing'
+      || r.status === 'comment_missing'
+      || r.status === 'price_comment_missing'
+    ));
+
+    const summary = await importReservationsToSheets(importable);
+    recordImportLog(buildImportLogEntry({
+      source: 'ical',
+      selectionCount: importable.length,
+      summary
+    }));
+    res.json({ success: true, selectionCount: importable.length, ...summary });
+  } catch (err) {
+    console.error('Failed to import ICAL:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/har/import', async (req, res) => {
   try {
-    const reservations = Array.isArray(req.body?.reservations) ? req.body.reservations : [];
-    if (reservations.length === 0) {
+    const incomingReservations = Array.isArray(req.body?.reservations) ? req.body.reservations : [];
+    if (incomingReservations.length === 0) {
       return res.status(400).json({ success: false, error: 'No reservations provided' });
     }
 
-    const token = await getAccessToken();
-    const runId = new Date().toISOString();
-    const grouped = {};
-    for (const r of reservations) {
-      const giteId = r.giteId || resolveGiteId(r.giteName || r.listingName);
-      if (!giteId) {
-        if (!grouped.unknown) grouped.unknown = [];
-        grouped.unknown.push(r);
-        continue;
-      }
-      if (!grouped[giteId]) grouped[giteId] = [];
-      grouped[giteId].push({ ...r, giteId });
-    }
-
-    const summary = {
-      inserted: 0,
-      updated: 0,
-      skipped: { duplicate: 0, invalid: 0, outsideYear: 0, unknown: 0 },
-      perGite: {}
-    };
-
-    if (grouped.unknown?.length) {
-      summary.skipped.unknown += grouped.unknown.length;
-    }
-
-    for (const [giteId, items] of Object.entries(grouped)) {
-      if (giteId === 'unknown') continue;
-      const sheetName = SHEET_NAMES[giteId];
-      if (!sheetName) {
-        summary.skipped.unknown += items.length;
-        continue;
-      }
-
-      const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
-      const columns = buildSheetColumns(header);
-      const existingIndex = buildExistingReservationIndex(rows, columns, giteId);
-      const existingKeys = new Set(existingIndex.keys());
-      const sheetId = await getSheetId(sheetName, token);
-      const rowsToInsert = [];
-      const existingUpdates = [];
-      const updatedKeys = new Set();
-
-      for (const r of items) {
-        const baseReservation = {
-          type: r.type || 'personal',
-          source: r.source || '',
-          checkIn: r.checkIn,
-          checkOut: r.checkOut,
-          nights: r.nights,
-          name: r.name || '',
-          payout: typeof r.payout === 'number' ? r.payout : null,
-          comment: r.comment || ''
-        };
-        const segments = splitReservationByMonth(baseReservation);
-
-        for (const seg of segments) {
-          const start = dayjs(seg.checkIn, 'YYYY-MM-DD', true);
-          const end = dayjs(seg.checkOut, 'YYYY-MM-DD', true);
-          if (!start.isValid() || !end.isValid()) {
-            summary.skipped.invalid += 1;
-            continue;
-          }
-          if (!overlapsCurrentYear(seg.checkIn, seg.checkOut)) {
-            summary.skipped.outsideYear += 1;
-            continue;
-          }
-          const key = `${giteId}|${seg.checkIn}|${seg.checkOut}`;
-          const existingEntry = existingIndex.get(key);
-          if (existingEntry) {
-            const prixValue = existingEntry.row[columns.colPrixNuit - 1];
-            const revenusValue = existingEntry.row[columns.colRevenus - 1];
-            const missingPrix = isEmptyCell(prixValue);
-            const missingRevenus = isEmptyCell(revenusValue);
-            const commentValue = typeof seg.comment === 'string' ? seg.comment.trim() : '';
-            const hasComment = commentValue !== '';
-            const missingComment = columns.colComment
-              && hasComment
-              && isEmptyCell(existingEntry.row[columns.colComment - 1]);
-            const canUpdatePrice = seg.type === 'airbnb' && typeof seg.payout === 'number';
-            const needsPriceUpdate = canUpdatePrice && (missingPrix || missingRevenus);
-            const needsCommentUpdate = missingComment;
-            if (needsPriceUpdate || needsCommentUpdate) {
-              if (!updatedKeys.has(key)) {
-                const rowNumber = existingEntry.rowNumber;
-                const updateStart = existingUpdates.length;
-                if (needsPriceUpdate && missingRevenus) {
-                  const revenusCol = toColumnLetter(columns.colRevenus);
-                  existingUpdates.push({
-                    range: `${sheetName}!${revenusCol}${rowNumber}`,
-                    values: [[seg.payout]]
-                  });
-                }
-                if (needsPriceUpdate && missingPrix) {
-                  const nights = resolveNights(seg);
-                  if (nights > 0) {
-                    const prixCol = toColumnLetter(columns.colPrixNuit);
-                    existingUpdates.push({
-                      range: `${sheetName}!${prixCol}${rowNumber}`,
-                      values: [[seg.payout / nights]]
-                    });
-                  }
-                }
-                if (needsCommentUpdate && columns.colComment) {
-                  const commentCol = toColumnLetter(columns.colComment);
-                  existingUpdates.push({
-                    range: `${sheetName}!${commentCol}${rowNumber}`,
-                    values: [[commentValue]]
-                  });
-                }
-                if (existingUpdates.length > updateStart) {
-                  summary.updated += 1;
-                  updatedKeys.add(key);
-                } else {
-                  summary.skipped.duplicate += 1;
-                }
-              }
-            } else {
-              summary.skipped.duplicate += 1;
-            }
-            continue;
-          }
-
-          if (existingKeys.has(key)) {
-            summary.skipped.duplicate += 1;
-            continue;
-          }
-
-          existingKeys.add(key);
-          const { rowValues, payoutValue } = buildHarRowValues(seg, columns, runId);
-          rowsToInsert.push({ reservation: seg, rowValues, payoutValue });
-        }
-      }
-
-      if (rowsToInsert.length > 0) {
-        const appendResult = await appendRowsValues(
-          sheetName,
-          rowsToInsert.map(item => item.rowValues),
-          token
-        );
-        const startRow = appendResult?.startRow;
-        if (!startRow) {
-          throw new Error('Failed to resolve inserted rows');
-        }
-
-        const debutCol = toColumnLetter(columns.colDebut);
-        const finCol = toColumnLetter(columns.colFin);
-        const nuitsCol = toColumnLetter(columns.colNuits);
-        const adultesCol = toColumnLetter(columns.colAdultes);
-        const prixCol = toColumnLetter(columns.colPrixNuit);
-        const revenusCol = toColumnLetter(columns.colRevenus);
-        const adultsValue = giteId === 'liberte' ? 10 : 2;
-
-        const updates = [...existingUpdates];
-        rowsToInsert.forEach((item, index) => {
-          const rowNumber = startRow + index;
-          updates.push({
-            range: `${sheetName}!${nuitsCol}${rowNumber}`,
-            values: [[`=${finCol}${rowNumber}-${debutCol}${rowNumber}`]]
-          });
-          updates.push({
-            range: `${sheetName}!${adultesCol}${rowNumber}`,
-            values: [[adultsValue]]
-          });
-
-          if (item.reservation.type === 'airbnb') {
-            const nights = resolveNights(item.reservation);
-            const payoutValue = typeof item.payoutValue === 'number'
-              ? item.payoutValue
-              : typeof item.reservation.payout === 'number'
-                ? item.reservation.payout
-                : null;
-            if (payoutValue != null && nights > 0) {
-              updates.push({
-                range: `${sheetName}!${prixCol}${rowNumber}`,
-                values: [[payoutValue / nights]]
-              });
-            }
-          } else if (item.reservation.type === 'personal') {
-            updates.push({
-              range: `${sheetName}!${revenusCol}${rowNumber}`,
-              values: [[`=${prixCol}${rowNumber}*${nuitsCol}${rowNumber}`]]
-            });
-          }
-        });
-
-        await batchUpdateValues(updates, token);
-        await highlightRange(sheetId, startRow, rowsToInsert.length, columns.highlightCols, token);
-
-        summary.inserted += rowsToInsert.length;
-        if (!summary.perGite[giteId]) summary.perGite[giteId] = 0;
-        summary.perGite[giteId] += rowsToInsert.length;
-        await postProcessHarSheet({ sheetName, sheetId, columns, token });
-      } else if (existingUpdates.length > 0) {
-        await batchUpdateValues(existingUpdates, token);
-      }
-    }
-
+    const summary = await importReservationsToSheets(incomingReservations);
+    recordImportLog(buildImportLogEntry({
+      source: 'har',
+      selectionCount: incomingReservations.length,
+      summary
+    }));
     res.json({ success: true, ...summary });
   } catch (err) {
     console.error('Failed to import HAR:', err.message);

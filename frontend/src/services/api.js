@@ -15,6 +15,7 @@ const UPLOAD_HAR_URL = `${API_BASE}/api/upload-har`;
 const HAR_PREVIEW_URL = `${API_BASE}/api/har/preview`;
 const HAR_IMPORT_URL = `${API_BASE}/api/har/import`;
 const ICAL_PREVIEW_URL = `${API_BASE}/api/ical/preview`;
+const IMPORT_LOG_URL = `${API_BASE}/api/import-log`;
 
 export async function fetchArrivals() {
   const res = await fetch(ARRIVALS_URL);
@@ -144,6 +145,12 @@ export async function importHarReservations(reservations) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reservations })
   });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+export async function fetchImportLog(limit = 5) {
+  const res = await fetch(`${IMPORT_LOG_URL}?limit=${limit}`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
