@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Login from './components/Login';
 import CalendarBar from './components/CalendarBar';
 import ArrivalsList from './components/ArrivalsList';
@@ -12,10 +12,6 @@ import {
 import { Box, IconButton } from '@mui/material';
 import Legend from './components/Legend';
 import { AvailabilityProvider } from './components/AvailabilityProvider.jsx';
-import { AvailabilityPeriodPanel } from './components/AvailabilityPeriodPanel.jsx';
-import { AvailabilityReservationPanel } from './components/AvailabilityReservationPanel.jsx';
-import SettingsPanel from './components/SettingsPanel';
-import HarImportPanel from './components/HarImportPanel.jsx';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EditIcon from '@mui/icons-material/Edit';
@@ -32,6 +28,32 @@ const LOADING_STEPS = [
   'Préparation de l\'interface'
 ];
 
+const AvailabilityPeriodPanel = React.lazy(() =>
+  import('./components/AvailabilityPeriodPanel.jsx').then(module => ({
+    default: module.AvailabilityPeriodPanel
+  }))
+);
+const AvailabilityReservationPanel = React.lazy(() =>
+  import('./components/AvailabilityReservationPanel.jsx').then(module => ({
+    default: module.AvailabilityReservationPanel
+  }))
+);
+const HarImportPanel = React.lazy(() => import('./components/HarImportPanel.jsx'));
+const SettingsPanel = React.lazy(() => import('./components/SettingsPanel.jsx'));
+
+const PanelFallback = ({ label }) => (
+  <Box
+    sx={{
+      py: 4,
+      textAlign: 'center',
+      color: 'text.secondary',
+      fontSize: 16
+    }}
+  >
+    {label || 'Chargement...'}
+  </Box>
+);
+
 function InnerApp() {
   const { theme } = useThemeColors();
   const [auth, setAuth] = useState(localStorage.getItem(AUTH_KEY) === 'true');
@@ -47,11 +69,20 @@ function InnerApp() {
     localStorage.getItem(USER_KEY) || 'Soaz'
   );
   const [panel, setPanel] = useState(0);
+  const [loadedPanels, setLoadedPanels] = useState(() => new Set([0]));
   // Chargement des données après authentification
   useEffect(() => {
     if (!auth) return;
     loadData();
   }, [auth]);
+  useEffect(() => {
+    setLoadedPanels(prev => {
+      if (prev.has(panel)) return prev;
+      const next = new Set(prev);
+      next.add(panel);
+      return next;
+    });
+  }, [panel]);
 
   const loadData = async () => {
     setLoadingState({
@@ -112,6 +143,7 @@ function InnerApp() {
       />
     );
   const panelBg = (theme.panelColors && theme.panelColors[panel]) || (theme.panelColors && theme.panelColors[0]) || '#ffffff';
+  const shouldRenderPanel = index => panel === index || loadedPanels.has(index);
 
   return (
     <AvailabilityProvider bookings={data.reservations}>
@@ -177,28 +209,51 @@ function InnerApp() {
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <AvailabilityPeriodPanel panelBg={panelBg} onReserve={() => setPanel(2)} onBack={() => setPanel(0)} />
+              {shouldRenderPanel(1) && (
+                <React.Suspense fallback={<PanelFallback label="Chargement des dates..." />}>
+                  <AvailabilityPeriodPanel
+                    panelBg={panelBg}
+                    onReserve={() => setPanel(2)}
+                    onBack={() => setPanel(0)}
+                  />
+                </React.Suspense>
+              )}
             </Box>
           </Box>
           <Box
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <AvailabilityReservationPanel panelBg={panelBg} onBack={() => setPanel(1)} />
+              {shouldRenderPanel(2) && (
+                <React.Suspense fallback={<PanelFallback label="Chargement de la reservation..." />}>
+                  <AvailabilityReservationPanel
+                    panelBg={panelBg}
+                    onBack={() => setPanel(1)}
+                  />
+                </React.Suspense>
+              )}
             </Box>
           </Box>
           <Box
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <HarImportPanel panelBg={panelBg} />
+              {shouldRenderPanel(3) && (
+                <React.Suspense fallback={<PanelFallback label="Chargement de l'import..." />}>
+                  <HarImportPanel panelBg={panelBg} />
+                </React.Suspense>
+              )}
             </Box>
           </Box>
           <Box
             sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              <SettingsPanel panelBg={panelBg} onBack={() => setPanel(3)} />
+              {shouldRenderPanel(4) && (
+                <React.Suspense fallback={<PanelFallback label="Chargement des reglages..." />}>
+                  <SettingsPanel panelBg={panelBg} onBack={() => setPanel(3)} />
+                </React.Suspense>
+              )}
             </Box>
           </Box>
         </Box>
