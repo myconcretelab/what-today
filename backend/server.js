@@ -1944,7 +1944,7 @@ app.post('/api/ical/preview', async (req, res) => {
   }
 });
 
-app.post('/api/ical/import', async (req, res) => {
+async function handleIcalImport(req, res) {
   try {
     await awaitIcalLoadIfNeeded();
     await startIcalLoad({ reset: true });
@@ -1970,7 +1970,10 @@ app.post('/api/ical/import', async (req, res) => {
     console.error('Failed to import ICAL:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
-});
+}
+
+app.post('/api/ical/import', handleIcalImport);
+app.get('/api/ical/import', handleIcalImport);
 
 app.post('/api/har/import', async (req, res) => {
   try {
