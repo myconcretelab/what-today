@@ -127,10 +127,20 @@ function normalizeGiteName(value) {
 const GITE_ID_BY_SHEET = Object.fromEntries(
   Object.entries(SHEET_NAMES).map(([id, name]) => [normalizeGiteName(name), id])
 );
+const GITE_NAME_BY_ID = Object.fromEntries(
+  GITES.map(gite => [gite.id, gite.nom])
+);
 
 function resolveGiteId(listingName) {
   const key = normalizeGiteName(listingName);
   return GITE_ID_BY_SHEET[key] || null;
+}
+
+function resolveGiteName(giteId, fallbackName) {
+  if (typeof fallbackName === 'string' && fallbackName.trim()) return fallbackName;
+  if (giteId && GITE_NAME_BY_ID[giteId]) return GITE_NAME_BY_ID[giteId];
+  if (giteId && SHEET_NAMES[giteId]) return SHEET_NAMES[giteId];
+  return '';
 }
 
 function formatDateFr(isoDate) {
@@ -639,7 +649,8 @@ function buildEmptyImportSummary() {
     inserted: 0,
     updated: 0,
     skipped: { duplicate: 0, invalid: 0, outsideYear: 0, unknown: 0 },
-    perGite: {}
+    perGite: {},
+    insertedItems: []
   };
 }
 
@@ -687,6 +698,7 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
     const updatedKeys = new Set();
 
     for (const r of items) {
+      const giteName = resolveGiteName(giteId, r.giteName || r.listingName);
       const baseReservation = {
         type: r.type || 'personal',
         source: r.source || '',
@@ -694,6 +706,7 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
         checkOut: r.checkOut,
         nights: r.nights,
         name: r.name || '',
+        giteName,
         payout: typeof r.payout === 'number' ? r.payout : null,
         comment: r.comment || ''
       };
@@ -835,6 +848,14 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
       summary.inserted += rowsToInsert.length;
       if (!summary.perGite[giteId]) summary.perGite[giteId] = 0;
       summary.perGite[giteId] += rowsToInsert.length;
+      rowsToInsert.forEach(item => {
+        summary.insertedItems.push({
+          giteId,
+          giteName: item.reservation.giteName || resolveGiteName(giteId),
+          checkIn: item.reservation.checkIn,
+          checkOut: item.reservation.checkOut
+        });
+      });
       await postProcessHarSheet({ sheetName, sheetId, columns, token });
     } else if (existingUpdates.length > 0) {
       await batchUpdateValues(existingUpdates, token);
@@ -1172,7 +1193,8 @@ function buildImportLogEntry({ source, selectionCount, summary }) {
       outsideYear: skipped.outsideYear || 0,
       unknown: skipped.unknown || 0
     },
-    perGite: summary?.perGite || {}
+    perGite: summary?.perGite || {},
+    insertedItems: Array.isArray(summary?.insertedItems) ? summary.insertedItems : []
   };
 }
 

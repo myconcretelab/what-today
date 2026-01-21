@@ -723,10 +723,11 @@ export default function HarImportPanel({ panelBg }) {
           {Array.isArray(importLog) && importLog.length > 0 && (
             <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
               {importLog.map((entry, index) => {
-                const skipped = entry?.skipped || {};
                 const selectionCount = Number.isFinite(entry?.selectionCount) ? entry.selectionCount : 0;
                 const inserted = Number.isFinite(entry?.inserted) ? entry.inserted : 0;
                 const updated = Number.isFinite(entry?.updated) ? entry.updated : 0;
+                const insertedItems = Array.isArray(entry?.insertedItems) ? entry.insertedItems : [];
+                const hasInsertedItems = insertedItems.length > 0;
                 const entryKey = entry?.id || entry?.at || `${entry?.source || 'import'}-${index}`;
                 return (
                   <Box
@@ -742,9 +743,39 @@ export default function HarImportPanel({ panelBg }) {
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                       {selectionCount} sélectionnée(s) · {inserted} ajoutée(s) · {updated} mise(s) à jour
                     </Typography>
-                    <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.7 }}>
-                      Ignorées: doublons {skipped.duplicate || 0}, invalides {skipped.invalid || 0}, hors année {skipped.outsideYear || 0}, inconnues {skipped.unknown || 0}
-                    </Typography>
+                    {hasInsertedItems ? (
+                      <Box sx={{ mt: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ display: 'block', fontWeight: 600, opacity: 0.7 }}
+                        >
+                          Ajouts
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mt: 0.25 }}>
+                          {insertedItems.map((item, itemIndex) => {
+                            const giteLabel = item?.giteName || item?.giteId || 'Gîte inconnu';
+                            const checkInLabel = formatDisplayDate(item?.checkIn);
+                            const checkOutLabel = formatDisplayDate(item?.checkOut);
+                            const dateLabel = checkInLabel && checkOutLabel
+                              ? `du ${checkInLabel} au ${checkOutLabel}`
+                              : (checkInLabel || checkOutLabel || 'dates inconnues');
+                            return (
+                              <Typography
+                                key={`${entryKey}-inserted-${itemIndex}`}
+                                variant="caption"
+                                sx={{ opacity: 0.7 }}
+                              >
+                                {giteLabel} · {dateLabel}
+                              </Typography>
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.7 }}>
+                        Aucun ajout.
+                      </Typography>
+                    )}
                   </Box>
                 );
               })}
