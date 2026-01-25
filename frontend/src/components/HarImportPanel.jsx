@@ -18,6 +18,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import { previewHar, previewIcal, importHarReservations, fetchImportLog } from '../services/api';
 import { useThemeColors } from '../theme.jsx';
 
@@ -26,6 +27,13 @@ function formatDisplayDate(isoDate) {
   const parts = isoDate.split('-');
   if (parts.length !== 3) return isoDate;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function formatShortDisplayDate(isoDate) {
+  if (!isoDate || typeof isoDate !== 'string') return '';
+  const parts = isoDate.split('-');
+  if (parts.length !== 3) return isoDate;
+  return `${parts[2]}/${parts[1]}`;
 }
 
 function formatLogDateTime(isoDate) {
@@ -37,6 +45,26 @@ function formatLogDateTime(isoDate) {
 
 function formatSourceLabel(source) {
   return source === 'ical' ? 'ICAL' : 'HAR';
+}
+
+function getReservationSourceMeta(reservation) {
+  const rawSource = typeof reservation?.source === 'string' ? reservation.source.trim() : '';
+  const typeValue = typeof reservation?.type === 'string' ? reservation.type.toLowerCase() : '';
+  const label = rawSource || (typeValue === 'airbnb' ? 'Airbnb' : 'Perso');
+  const normalized = (rawSource || typeValue).toLowerCase();
+  let color = 'default';
+  if (normalized.includes('airbnb')) {
+    color = 'primary';
+  } else if (normalized.includes('abritel')) {
+    color = 'warning';
+  } else if (normalized.includes('gites') || normalized.includes('gîtes')) {
+    color = 'success';
+  } else if (normalized.includes('direct') || normalized.includes('perso') || normalized.includes('personal')) {
+    color = 'default';
+  } else if (normalized) {
+    color = 'info';
+  }
+  return { label, color };
 }
 
 function parseIsoDate(isoDate) {
@@ -582,7 +610,16 @@ export default function HarImportPanel({ panelBg }) {
                     const metaList = statusMetaList(r.status);
                     const isSelectable = isSelectableStatus(r.status);
                     const isChecked = !!selectedIds[r.id];
-                    const typeLabel = r.source || (r.type === 'airbnb' ? 'Airbnb' : 'Personnel');
+                    const sourceMeta = getReservationSourceMeta(r);
+                    const checkInLabel = formatShortDisplayDate(r.checkIn);
+                    const checkOutLabel = formatShortDisplayDate(r.checkOut);
+                    const dateContent = checkInLabel && checkOutLabel ? (
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        <span>{checkInLabel}</span>
+                        <ArrowRightAltIcon fontSize="inherit" sx={{ opacity: 0.7 }} />
+                        <span>{checkOutLabel}</span>
+                      </Box>
+                    ) : (checkInLabel || checkOutLabel || 'dates inconnues');
                     const showReason = r.reason && (!isSelectable || isMissingStatus(r.status));
                     return (
                       <Card
@@ -607,7 +644,7 @@ export default function HarImportPanel({ panelBg }) {
                               }}
                             >
                               <Typography variant="subtitle1">
-                                {r.giteName || 'Gîte inconnu'} · {formatDisplayDate(r.checkIn)} → {formatDisplayDate(r.checkOut)}
+                                {r.giteName || 'Gîte inconnu'} · {dateContent}
                               </Typography>
                               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
                                 {metaList.map((meta, index) => (
@@ -625,9 +662,17 @@ export default function HarImportPanel({ panelBg }) {
                             <Typography variant="body2" sx={{ mt: 0.5 }}>
                               {r.name ? `Nom: ${r.name}` : 'Nom non renseigné'}
                             </Typography>
-                            <Typography variant="body2" sx={{ mt: 0.5 }}>
-                              {typeLabel} · {r.payout != null ? `Payout: ${r.payout}€` : 'Payout: n/a'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mt: 0.5 }}>
+                              <Chip
+                                label={sourceMeta.label}
+                                color={sourceMeta.color}
+                                size="small"
+                                sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                              />
+                              <Typography variant="body2">
+                                {r.payout != null ? `Payout: ${r.payout}€` : 'Payout: n/a'}
+                              </Typography>
+                            </Box>
                             {r.comment && (
                               <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.8 }}>
                                 Commentaire: {r.comment}
@@ -754,18 +799,22 @@ export default function HarImportPanel({ panelBg }) {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mt: 0.25 }}>
                           {insertedItems.map((item, itemIndex) => {
                             const giteLabel = item?.giteName || item?.giteId || 'Gîte inconnu';
-                            const checkInLabel = formatDisplayDate(item?.checkIn);
-                            const checkOutLabel = formatDisplayDate(item?.checkOut);
-                            const dateLabel = checkInLabel && checkOutLabel
-                              ? `du ${checkInLabel} au ${checkOutLabel}`
-                              : (checkInLabel || checkOutLabel || 'dates inconnues');
+                            const checkInLabel = formatShortDisplayDate(item?.checkIn);
+                            const checkOutLabel = formatShortDisplayDate(item?.checkOut);
+                            const dateContent = checkInLabel && checkOutLabel ? (
+                              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                <span>{checkInLabel}</span>
+                                <ArrowRightAltIcon fontSize="inherit" sx={{ opacity: 0.7 }} />
+                                <span>{checkOutLabel}</span>
+                              </Box>
+                            ) : (checkInLabel || checkOutLabel || 'dates inconnues');
                             return (
                               <Typography
                                 key={`${entryKey}-inserted-${itemIndex}`}
                                 variant="caption"
                                 sx={{ opacity: 0.7 }}
                               >
-                                {giteLabel} · {dateLabel}
+                                {giteLabel} · {dateContent}
                               </Typography>
                             );
                           })}
