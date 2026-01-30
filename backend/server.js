@@ -1530,15 +1530,8 @@ async function chargerCalendriers() {
         for (const ev of Object.values(data)) {
           if (ev.type === 'VEVENT') {
             let typeSource = source.type;
-            // Si le summary contient "Airbnb (Not available)"
-            // alors on considère la réservation comme directe
-            if (
-              typeSource === 'Airbnb' &&
-              typeof ev.summary === 'string' &&
-              ev.summary.includes('Airbnb (Not available)')
-            ) {
-              typeSource = 'Direct';
-            }
+            // Si le summary contient "Airbnb (Not available)", on garde "Airbnb"
+            // pour la source de réservation.
 
             // Filtrage générique par summary via la config de la source
             if (!shouldKeepBySummary(ev.summary, source)) {
