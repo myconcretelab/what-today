@@ -143,6 +143,7 @@ export default function HarImportPanel({ panelBg }) {
   const theme = useTheme();
   const { theme: colorTheme } = useThemeColors();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
+  const importLogChipColor = theme.palette.getContrastText(colorTheme.cardBg || '#ffffff');
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState('');
   const [previewSource, setPreviewSource] = useState('har');
@@ -780,7 +781,12 @@ export default function HarImportPanel({ panelBg }) {
                     sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
                   >
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-                      <Chip label={formatSourceLabel(entry?.source)} size="small" variant="outlined" />
+                      <Chip
+                        label={formatSourceLabel(entry?.source)}
+                        size="small"
+                        variant="outlined"
+                        sx={{ color: importLogChipColor, borderColor: importLogChipColor }}
+                      />
                       <Typography variant="caption" sx={{ opacity: 0.8 }}>
                         {formatLogDateTime(entry?.at)}
                       </Typography>
