@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
   Box,
   Typography,
@@ -144,6 +144,8 @@ export default function HarImportPanel({ panelBg }) {
   const { theme: colorTheme } = useThemeColors();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
   const importLogChipColor = theme.palette.getContrastText(colorTheme.cardBg || '#ffffff');
+  const importLogChipBg = alpha(importLogChipColor, 0.12);
+  const importLogChipBorder = alpha(importLogChipColor, 0.6);
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState('');
   const [previewSource, setPreviewSource] = useState('har');
@@ -785,7 +787,12 @@ export default function HarImportPanel({ panelBg }) {
                         label={formatSourceLabel(entry?.source)}
                         size="small"
                         variant="outlined"
-                        sx={{ color: importLogChipColor, borderColor: importLogChipColor }}
+                        sx={{
+                          color: importLogChipColor,
+                          borderColor: importLogChipBorder,
+                          bgcolor: importLogChipBg,
+                          fontWeight: 600
+                        }}
                       />
                       <Typography variant="caption" sx={{ opacity: 0.8 }}>
                         {formatLogDateTime(entry?.at)}
