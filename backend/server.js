@@ -852,6 +852,8 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
         summary.insertedItems.push({
           giteId,
           giteName: item.reservation.giteName || resolveGiteName(giteId),
+          source: item.reservation.source || '',
+          type: item.reservation.type || '',
           checkIn: item.reservation.checkIn,
           checkOut: item.reservation.checkOut
         });

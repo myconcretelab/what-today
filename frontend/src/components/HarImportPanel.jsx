@@ -21,6 +21,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import { previewHar, previewIcal, importHarReservations, fetchImportLog } from '../services/api';
 import { useThemeColors } from '../theme.jsx';
+import { sourceColor } from '../utils';
 
 function formatDisplayDate(isoDate) {
   if (!isoDate || typeof isoDate !== 'string') return '';
@@ -137,6 +138,15 @@ function matchesStatusGroup(status, group) {
 
 function isCompactViewGroup(group) {
   return group === 'new' || group === 'price_missing' || group === 'comment_missing';
+}
+
+function resolveLogItemSourceLabel(item) {
+  const rawSource = typeof item?.source === 'string' ? item.source.trim() : '';
+  if (rawSource) return rawSource;
+  const typeValue = typeof item?.type === 'string' ? item.type.toLowerCase() : '';
+  if (typeValue === 'airbnb') return 'Airbnb';
+  if (typeValue === 'personal') return 'Direct';
+  return 'default';
 }
 
 export default function HarImportPanel({ panelBg }) {
@@ -814,6 +824,11 @@ export default function HarImportPanel({ panelBg }) {
                             const giteLabel = item?.giteName || item?.giteId || 'Gîte inconnu';
                             const checkInLabel = formatShortDisplayDate(item?.checkIn);
                             const checkOutLabel = formatShortDisplayDate(item?.checkOut);
+                            const itemSourceLabel = resolveLogItemSourceLabel(item);
+                            const itemSourceColor = sourceColor(itemSourceLabel);
+                            const itemSourceTitle = itemSourceLabel === 'default'
+                              ? 'Source inconnue'
+                              : itemSourceLabel;
                             const dateContent = checkInLabel && checkOutLabel ? (
                               <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                                 <span>{checkInLabel}</span>
@@ -822,13 +837,28 @@ export default function HarImportPanel({ panelBg }) {
                               </Box>
                             ) : (checkInLabel || checkOutLabel || 'dates inconnues');
                             return (
-                              <Typography
+                              <Box
                                 key={`${entryKey}-inserted-${itemIndex}`}
-                                variant="caption"
-                                sx={{ opacity: 0.7 }}
+                                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
                               >
-                                {giteLabel} · {dateContent}
-                              </Typography>
+                                <Chip
+                                  size="small"
+                                  label=" "
+                                  title={itemSourceTitle}
+                                  sx={{
+                                    bgcolor: itemSourceColor,
+                                    width: 12,
+                                    height: 12,
+                                    minWidth: 12,
+                                    borderRadius: '50%',
+                                    border: '1px solid rgba(0, 0, 0, 0.2)',
+                                    '& .MuiChip-label': { display: 'none' }
+                                  }}
+                                />
+                                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                  {giteLabel} · {dateContent}
+                                </Typography>
+                              </Box>
                             );
                           })}
                         </Box>
