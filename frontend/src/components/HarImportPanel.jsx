@@ -51,7 +51,10 @@ function formatSourceLabel(source) {
 function getReservationSourceMeta(reservation) {
   const rawSource = typeof reservation?.source === 'string' ? reservation.source.trim() : '';
   const typeValue = typeof reservation?.type === 'string' ? reservation.type.toLowerCase() : '';
-  const label = rawSource || (typeValue === 'airbnb' ? 'Airbnb' : 'Perso');
+  const isDirectSource = rawSource.toLowerCase() === 'direct';
+  const label = rawSource
+    ? (isDirectSource ? 'A définir' : rawSource)
+    : (typeValue === 'airbnb' ? 'Airbnb' : 'A définir');
   const normalized = (rawSource || typeValue).toLowerCase();
   let color = 'default';
   if (normalized.includes('airbnb')) {
@@ -60,7 +63,13 @@ function getReservationSourceMeta(reservation) {
     color = 'warning';
   } else if (normalized.includes('gites') || normalized.includes('gîtes')) {
     color = 'success';
-  } else if (normalized.includes('direct') || normalized.includes('perso') || normalized.includes('personal')) {
+  } else if (
+    normalized.includes('direct')
+    || normalized.includes('perso')
+    || normalized.includes('personal')
+    || normalized.includes('definir')
+    || normalized.includes('définir')
+  ) {
     color = 'default';
   } else if (normalized) {
     color = 'info';
@@ -142,10 +151,12 @@ function isCompactViewGroup(group) {
 
 function resolveLogItemSourceLabel(item) {
   const rawSource = typeof item?.source === 'string' ? item.source.trim() : '';
-  if (rawSource) return rawSource;
+  if (rawSource) {
+    return rawSource.toLowerCase() === 'direct' ? 'A définir' : rawSource;
+  }
   const typeValue = typeof item?.type === 'string' ? item.type.toLowerCase() : '';
   if (typeValue === 'airbnb') return 'Airbnb';
-  if (typeValue === 'personal') return 'Direct';
+  if (typeValue === 'personal') return 'A définir';
   return 'default';
 }
 

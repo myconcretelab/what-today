@@ -441,13 +441,30 @@ async function highlightRow(sheetId, rowNumber, highlightCols, token) {
   await highlightRange(sheetId, rowNumber, 1, highlightCols, token);
 }
 
+function normalizeSourceLabel(rawSource) {
+  const sourceLabel = typeof rawSource === 'string' ? rawSource.trim() : '';
+  if (!sourceLabel) return '';
+  const normalized = sourceLabel.toLowerCase();
+  if (normalized === 'direct' || normalized === 'perso' || normalized === 'personal') {
+    return '';
+  }
+  return sourceLabel;
+}
+
+function resolvePaymentText(reservation) {
+  const sourceLabel = normalizeSourceLabel(reservation?.source);
+  if (sourceLabel) {
+    return sourceLabel;
+  }
+  return reservation?.type === 'airbnb' ? 'Airbnb' : 'A définir';
+}
+
 function buildHarRowValues(reservation, columns, runId) {
   const rowLength = getSheetRowLength(columns);
   const rowValues = Array(rowLength).fill('');
   const startStr = formatDateFr(reservation.checkIn);
   const endStr = formatDateFr(reservation.checkOut);
-  const sourceLabel = typeof reservation.source === 'string' ? reservation.source.trim() : '';
-  const paymentText = sourceLabel || (reservation.type === 'airbnb' ? 'Airbnb' : 'A définir');
+  const paymentText = resolvePaymentText(reservation);
   const nameValue = reservation.name || '';
   const commentValue = reservation.comment || '';
   const payoutValue = typeof reservation.payout === 'number' ? reservation.payout : '';
@@ -699,9 +716,10 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
 
     for (const r of items) {
       const giteName = resolveGiteName(giteId, r.giteName || r.listingName);
+      const sourceLabel = normalizeSourceLabel(r.source);
       const baseReservation = {
         type: r.type || 'personal',
-        source: r.source || '',
+        source: sourceLabel,
         checkIn: r.checkIn,
         checkOut: r.checkOut,
         nights: r.nights,
@@ -1941,7 +1959,7 @@ function buildIcalFlatReservations() {
         giteId,
         giteName,
         sheetName,
-        source: item.source || '',
+        source: normalizeSourceLabel(item.source),
         ...seg
       });
     }

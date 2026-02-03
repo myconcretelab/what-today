@@ -3,6 +3,7 @@ export const COLORS = {
     Airbnb: '#E53935',
     Abritel: '#1976D2',
     'Gites de France': '#FBC02D',
+    'A définir': '#424242',
     Direct: '#424242',
     default: '#9E9E9E'
   },
