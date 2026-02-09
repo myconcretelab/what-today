@@ -556,6 +556,7 @@ async function buildPreviewResponse(flatReservations) {
     existing: 0,
     priceMissing: 0,
     commentMissing: 0,
+    nameMissing: 0,
     priceCommentMissing: 0,
     outsideYear: 0,
     invalid: 0,
@@ -570,8 +571,11 @@ async function buildPreviewResponse(flatReservations) {
     let reason = '';
     let priceMissing = false;
     let commentMissing = false;
+    let nameMissing = false;
     const commentValue = typeof r.comment === 'string' ? r.comment.trim() : '';
     const hasComment = commentValue !== '';
+    const nameValue = typeof r.name === 'string' ? r.name.trim() : '';
+    const hasName = nameValue !== '';
 
     if (!r.giteId) {
       status = 'unknown';
@@ -596,21 +600,33 @@ async function buildPreviewResponse(flatReservations) {
         if (columns.colComment && hasComment) {
           commentMissing = isEmptyCell(existingEntry.row[columns.colComment - 1]);
         }
+        if (columns.colNom && hasName) {
+          nameMissing = isEmptyCell(existingEntry.row[columns.colNom - 1]);
+        }
       }
-      if (priceMissing || commentMissing) {
+      if (priceMissing || commentMissing || nameMissing) {
         if (priceMissing && commentMissing) {
           status = 'price_comment_missing';
-          reason = 'prix et commentaire manquants';
-          counts.priceCommentMissing += 1;
         } else if (priceMissing) {
           status = 'price_missing';
-          reason = 'prix manquant dans la feuille';
-          counts.priceMissing += 1;
-        } else {
+        } else if (commentMissing) {
           status = 'comment_missing';
-          reason = 'commentaire manquant dans la feuille';
-          counts.commentMissing += 1;
+        } else {
+          status = 'name_missing';
         }
+
+        const missingFields = [];
+        if (priceMissing) missingFields.push('prix');
+        if (commentMissing) missingFields.push('commentaire');
+        if (nameMissing) missingFields.push('nom');
+        if (missingFields.length) {
+          reason = `${missingFields.join(' et ')} manquant${missingFields.length > 1 ? 's' : ''} dans la feuille`;
+        }
+
+        if (priceMissing) counts.priceMissing += 1;
+        if (commentMissing) counts.commentMissing += 1;
+        if (nameMissing) counts.nameMissing += 1;
+        if (priceMissing && commentMissing) counts.priceCommentMissing += 1;
       } else {
         status = 'existing';
         reason = 'déjà présent';
@@ -628,6 +644,7 @@ async function buildPreviewResponse(flatReservations) {
           existing: 0,
           priceMissing: 0,
           commentMissing: 0,
+          nameMissing: 0,
           priceCommentMissing: 0,
           outsideYear: 0,
           invalid: 0,
@@ -637,9 +654,10 @@ async function buildPreviewResponse(flatReservations) {
       byGite[r.giteName].total += 1;
       if (status === 'new') byGite[r.giteName].new += 1;
       if (status === 'existing') byGite[r.giteName].existing += 1;
-      if (status === 'price_missing') byGite[r.giteName].priceMissing += 1;
-      if (status === 'comment_missing') byGite[r.giteName].commentMissing += 1;
-      if (status === 'price_comment_missing') byGite[r.giteName].priceCommentMissing += 1;
+      if (priceMissing) byGite[r.giteName].priceMissing += 1;
+      if (commentMissing) byGite[r.giteName].commentMissing += 1;
+      if (nameMissing) byGite[r.giteName].nameMissing += 1;
+      if (priceMissing && commentMissing) byGite[r.giteName].priceCommentMissing += 1;
       if (status === 'outside_year') byGite[r.giteName].outsideYear += 1;
       if (status === 'invalid') byGite[r.giteName].invalid += 1;
       if (status === 'unknown') byGite[r.giteName].unknown += 1;
@@ -654,7 +672,8 @@ async function buildPreviewResponse(flatReservations) {
       status,
       reason,
       priceMissing,
-      commentMissing
+      commentMissing,
+      nameMissing
     };
   });
 
@@ -750,13 +769,19 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
           const missingRevenus = isEmptyCell(revenusValue);
           const commentValue = typeof seg.comment === 'string' ? seg.comment.trim() : '';
           const hasComment = commentValue !== '';
+          const nameValue = typeof seg.name === 'string' ? seg.name.trim() : '';
+          const hasName = nameValue !== '';
           const missingComment = columns.colComment
             && hasComment
             && isEmptyCell(existingEntry.row[columns.colComment - 1]);
+          const missingName = columns.colNom
+            && hasName
+            && isEmptyCell(existingEntry.row[columns.colNom - 1]);
           const canUpdatePrice = seg.type === 'airbnb' && typeof seg.payout === 'number';
           const needsPriceUpdate = canUpdatePrice && (missingPrix || missingRevenus);
           const needsCommentUpdate = allowCommentUpdate && missingComment;
-          if (needsPriceUpdate || needsCommentUpdate) {
+          const needsNameUpdate = missingName;
+          if (needsPriceUpdate || needsCommentUpdate || needsNameUpdate) {
             if (!updatedKeys.has(key)) {
               const rowNumber = existingEntry.rowNumber;
               const updateStart = existingUpdates.length;
@@ -782,6 +807,13 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
                 existingUpdates.push({
                   range: `${sheetName}!${commentCol}${rowNumber}`,
                   values: [[commentValue]]
+                });
+              }
+              if (needsNameUpdate && columns.colNom) {
+                const nomCol = toColumnLetter(columns.colNom);
+                existingUpdates.push({
+                  range: `${sheetName}!${nomCol}${rowNumber}`,
+                  values: [[nameValue]]
                 });
               }
               if (existingUpdates.length > updateStart) {
@@ -1992,6 +2024,7 @@ async function handleIcalImport(req, res) {
       || r.status === 'price_missing'
       || r.status === 'comment_missing'
       || r.status === 'price_comment_missing'
+      || r.status === 'name_missing'
     ));
 
     const summary = await importReservationsToSheets(importable, { allowCommentUpdate: false });

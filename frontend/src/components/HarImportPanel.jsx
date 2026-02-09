@@ -92,12 +92,36 @@ function formatMonthLabel(date) {
   return date.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
-function statusMetaList(status) {
+function statusMetaList(reservation) {
+  const status = reservation?.status;
   switch (status) {
     case 'new':
       return [{ label: 'Nouvelle', color: 'success', icon: <CheckCircleIcon /> }];
     case 'existing':
       return [{ label: 'Déjà présente', color: 'warning', icon: <InfoOutlinedIcon /> }];
+    case 'outside_year':
+      return [{ label: 'Hors année', color: 'info', icon: <InfoOutlinedIcon /> }];
+    case 'invalid':
+      return [{ label: 'Dates invalides', color: 'error', icon: <ErrorOutlineIcon /> }];
+    case 'unknown':
+      return [{ label: 'Gîte inconnu', color: 'error', icon: <ErrorOutlineIcon /> }];
+    default:
+      break;
+  }
+
+  const missingMeta = [];
+  if (reservation?.priceMissing) {
+    missingMeta.push({ label: 'Prix manquant', color: 'warning', icon: <InfoOutlinedIcon /> });
+  }
+  if (reservation?.commentMissing) {
+    missingMeta.push({ label: 'Commentaire manquant', color: 'warning', icon: <InfoOutlinedIcon /> });
+  }
+  if (reservation?.nameMissing) {
+    missingMeta.push({ label: 'Nom manquant', color: 'warning', icon: <InfoOutlinedIcon /> });
+  }
+  if (missingMeta.length) return missingMeta;
+
+  switch (status) {
     case 'price_missing':
       return [{ label: 'Prix manquant', color: 'warning', icon: <InfoOutlinedIcon /> }];
     case 'comment_missing':
@@ -107,12 +131,8 @@ function statusMetaList(status) {
         { label: 'Prix manquant', color: 'warning', icon: <InfoOutlinedIcon /> },
         { label: 'Commentaire manquant', color: 'warning', icon: <InfoOutlinedIcon /> }
       ];
-    case 'outside_year':
-      return [{ label: 'Hors année', color: 'info', icon: <InfoOutlinedIcon /> }];
-    case 'invalid':
-      return [{ label: 'Dates invalides', color: 'error', icon: <ErrorOutlineIcon /> }];
-    case 'unknown':
-      return [{ label: 'Gîte inconnu', color: 'error', icon: <ErrorOutlineIcon /> }];
+    case 'name_missing':
+      return [{ label: 'Nom manquant', color: 'warning', icon: <InfoOutlinedIcon /> }];
     default:
       return [{ label: 'Statut inconnu', color: 'default', icon: <InfoOutlinedIcon /> }];
   }
@@ -122,31 +142,44 @@ function isSelectableStatus(status) {
   return status === 'new'
     || status === 'price_missing'
     || status === 'comment_missing'
-    || status === 'price_comment_missing';
+    || status === 'price_comment_missing'
+    || status === 'name_missing';
 }
 
 function isMissingStatus(status) {
   return status === 'price_missing'
     || status === 'comment_missing'
-    || status === 'price_comment_missing';
+    || status === 'price_comment_missing'
+    || status === 'name_missing';
 }
 
 function isCompactViewStatus(status) {
   return status === 'new' || isMissingStatus(status);
 }
 
-function matchesStatusGroup(status, group) {
+function matchesStatusGroup(reservation, group) {
+  const status = reservation?.status;
   if (group === 'price_missing') {
-    return status === 'price_missing' || status === 'price_comment_missing';
+    return reservation?.priceMissing
+      || status === 'price_missing'
+      || status === 'price_comment_missing';
   }
   if (group === 'comment_missing') {
-    return status === 'comment_missing' || status === 'price_comment_missing';
+    return reservation?.commentMissing
+      || status === 'comment_missing'
+      || status === 'price_comment_missing';
+  }
+  if (group === 'name_missing') {
+    return reservation?.nameMissing || status === 'name_missing';
   }
   return status === group;
 }
 
 function isCompactViewGroup(group) {
-  return group === 'new' || group === 'price_missing' || group === 'comment_missing';
+  return group === 'new'
+    || group === 'price_missing'
+    || group === 'comment_missing'
+    || group === 'name_missing';
 }
 
 function resolveLogItemSourceLabel(item) {
@@ -316,10 +349,9 @@ export default function HarImportPanel({ panelBg }) {
     );
   }, [groupedReservations]);
 
-  const priceMissingCount = (preview?.counts?.priceMissing || 0)
-    + (preview?.counts?.priceCommentMissing || 0);
-  const commentMissingCount = (preview?.counts?.commentMissing || 0)
-    + (preview?.counts?.priceCommentMissing || 0);
+  const priceMissingCount = preview?.counts?.priceMissing || 0;
+  const commentMissingCount = preview?.counts?.commentMissing || 0;
+  const nameMissingCount = preview?.counts?.nameMissing || 0;
   const totalCount = preview?.counts?.total || 0;
   const newCount = preview?.counts?.new || 0;
   const existingCount = preview?.counts?.existing || 0;
@@ -458,7 +490,7 @@ export default function HarImportPanel({ panelBg }) {
 
   useEffect(() => {
     if (!pendingScrollStatus) return;
-    const match = orderedReservations.find(r => matchesStatusGroup(r.status, pendingScrollStatus));
+    const match = orderedReservations.find(r => matchesStatusGroup(r, pendingScrollStatus));
     if (!match) {
       setPendingScrollStatus(null);
       return;
@@ -574,6 +606,12 @@ export default function HarImportPanel({ panelBg }) {
                 onClick={commentMissingCount > 0 ? () => handleScrollToStatus('comment_missing') : undefined}
               />
               <Chip
+                color="warning"
+                label={`Nom manquant: ${nameMissingCount}`}
+                clickable={nameMissingCount > 0}
+                onClick={nameMissingCount > 0 ? () => handleScrollToStatus('name_missing') : undefined}
+              />
+              <Chip
                 color="info"
                 label={`Hors année: ${outsideYearCount}`}
                 clickable={outsideYearCount > 0}
@@ -631,7 +669,7 @@ export default function HarImportPanel({ panelBg }) {
                     {giteGroup.name}
                   </Typography>
                   {giteGroup.reservations.map(r => {
-                    const metaList = statusMetaList(r.status);
+                    const metaList = statusMetaList(r);
                     const isSelectable = isSelectableStatus(r.status);
                     const isChecked = !!selectedIds[r.id];
                     const sourceMeta = getReservationSourceMeta(r);
