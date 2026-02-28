@@ -5,5 +5,4 @@ set -euo pipefail
 git pull
 
 # Build the frontend application
-cd frontend
 npm run build

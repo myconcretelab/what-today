@@ -1,0 +1,23 @@
+{
+  "name": "what-today",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "./dev",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "start": "npm run start --workspace backend",
+    "build": "npm run build --workspace frontend",
+    "test": "npm run test --workspaces --if-present",
+    "test:backend": "npm run test --workspace backend",
+    "test:frontend": "npm run test --workspace frontend",
+    "ci": "npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

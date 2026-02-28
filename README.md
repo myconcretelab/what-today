@@ -24,21 +24,25 @@ sous forme d'une liste et d'un petit calendrier coloré.
 
 ## Installation
 ```bash
-# Backend
-cd backend
-npm install
-
-# Frontend
-cd ../frontend
+# Depuis la racine du dépôt
 npm install
 ```
 
 ## Utilisation
-### Lancer le serveur API
+### Lancer backend + frontend (recommandé)
 ```bash
-cd backend
-npm start
+npm run dev
 ```
+
+### Lancer un seul workspace si besoin
+```bash
+# Backend seul
+npm run dev:backend
+
+# Frontend seul
+npm run dev:frontend
+```
+
 Le serveur écoute par défaut sur le port **3001** et charge les fichiers `ics`
 une seule fois au démarrage.
 
@@ -48,12 +52,6 @@ Les commentaires de réservations sont exposés via:
   Google Sheets qui met à jour le cache si nécessaire.
 - `GET /api/comments/:giteId/:date` — même logique cache‑d'abord + rafraîchissement.
 
-### Lancer le frontend
-```bash
-cd frontend
-npm run dev
-```
-
 Définissez le mot de passe attendu côté frontend via une variable
 d'environnement `VITE_PASSWORD` (par défaut : `secret`).
 
@@ -61,13 +59,12 @@ d'environnement `VITE_PASSWORD` (par défaut : `secret`).
 Des tests unitaires de base sont disponibles sur les deux sous-projets.
 
 ```bash
-# Backend
-cd backend
+# Tous les tests (backend + frontend)
 npm test
 
-# Frontend
-cd ../frontend
-CI=true npm test
+# Ou par workspace
+npm run test:backend
+npm run test:frontend
 ```
 
 Une CI GitHub Actions exécute automatiquement:
@@ -78,6 +75,7 @@ Une CI GitHub Actions exécute automatiquement:
 ## Architecture
 ```
 what-today/
+├── package.json         # Racine monorepo (npm workspaces)
 ├── backend/            # Serveur Node.js (Express)
 │   ├── server.js       # Chargement des ics et endpoint JSON
 │   └── package.json

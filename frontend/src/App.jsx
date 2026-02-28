@@ -9,7 +9,7 @@ import {
   updateStatus,
   refreshCalendars
 } from './services/api';
-import { Box, IconButton } from '@mui/material';
+import { Box, Button, IconButton, Typography } from '@mui/material';
 import Legend from './components/Legend';
 import { AvailabilityProvider } from './components/AvailabilityProvider.jsx';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -54,6 +54,19 @@ const PanelFallback = ({ label }) => (
   </Box>
 );
 
+function buildLoadErrorMessage(error) {
+  if (error?.code === 'TIMEOUT') {
+    return 'Le serveur met trop de temps à répondre. Vérifiez la connexion puis réessayez.';
+  }
+  if (typeof error?.status === 'number') {
+    return `Le serveur a renvoyé une erreur (${error.status}).`;
+  }
+  if (typeof error?.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+  return 'Une erreur réseau est survenue.';
+}
+
 function InnerApp() {
   const { theme } = useThemeColors();
   const [auth, setAuth] = useState(localStorage.getItem(AUTH_KEY) === 'true');
@@ -62,6 +75,7 @@ function InnerApp() {
     step: 0,
     message: 'Initialisation...'
   });
+  const [loadError, setLoadError] = useState('');
   const [data, setData] = useState({ reservations: [], erreurs: [] });
   const [statuses, setStatuses] = useState({});
   const USER_KEY = 'wt-user';
@@ -85,33 +99,43 @@ function InnerApp() {
   }, [panel]);
 
   const loadData = async () => {
+    setLoadError('');
     setLoadingState({
       active: true,
       step: 0,
       message: 'Connexion au serveur...'
     });
 
-    const arrivals = await fetchArrivals();
-    setLoadingState({
-      active: true,
-      step: 1,
-      message: 'Arrivées récupérées'
-    });
+    try {
+      const arrivals = await fetchArrivals();
+      setLoadingState({
+        active: true,
+        step: 1,
+        message: 'Arrivées récupérées'
+      });
 
-    const stat = await fetchStatuses();
-    setLoadingState({
-      active: true,
-      step: 2,
-      message: 'Statuts récupérés'
-    });
+      const stat = await fetchStatuses();
+      setLoadingState({
+        active: true,
+        step: 2,
+        message: 'Statuts récupérés'
+      });
 
-    setData(arrivals);
-    setStatuses(stat);
-    setLoadingState({
-      active: false,
-      step: LOADING_STEPS.length,
-      message: 'Interface prête'
-    });
+      setData(arrivals);
+      setStatuses(stat);
+      setLoadingState({
+        active: false,
+        step: LOADING_STEPS.length,
+        message: 'Interface prête'
+      });
+    } catch (error) {
+      setLoadError(buildLoadErrorMessage(error));
+      setLoadingState({
+        active: false,
+        step: 0,
+        message: 'Erreur de chargement'
+      });
+    }
   };
 
   // Fonction de validation du mot de passe
@@ -130,7 +154,11 @@ function InnerApp() {
   };
 
   const handleRefresh = () => {
-    return refreshCalendars().then(() => loadData());
+    return refreshCalendars()
+      .then(() => loadData())
+      .catch(error => {
+        setLoadError(buildLoadErrorMessage(error));
+      });
   };
 
   if (!auth) return <Login onLogin={handleLogin} />;
@@ -141,6 +169,31 @@ function InnerApp() {
         activeStep={loadingState.step}
         message={loadingState.message}
       />
+    );
+  if (loadError)
+    return (
+      <Box
+        sx={{
+          width: '100%',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 3
+        }}
+      >
+        <Box sx={{ textAlign: 'center', maxWidth: 480 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Impossible de charger les données
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {loadError}
+          </Typography>
+          <Button variant="contained" onClick={loadData}>
+            Réessayer
+          </Button>
+        </Box>
+      </Box>
     );
   const panelBg = (theme.panelColors && theme.panelColors[panel]) || (theme.panelColors && theme.panelColors[0]) || '#ffffff';
   const shouldRenderPanel = index => panel === index || loadedPanels.has(index);
