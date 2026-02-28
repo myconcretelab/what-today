@@ -7,10 +7,21 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat.js'; // <-- Add this line
 import 'dayjs/locale/fr.js';
 import path from 'path';
-import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parseHarReservationsByListing } from './parse-har-airbnb.js';
+import { writeTextFileQueued } from './file-store.js';
+import { createSheetsClient } from './services/sheets-client.js';
+import { createAdminRouter } from './routes/admin-routes.js';
+import { createArrivalsRouter } from './routes/arrivals-routes.js';
+import { createCommentsRouter } from './routes/comments-routes.js';
+import { createImportRouter } from './routes/import-routes.js';
+import { createReservationRouter } from './routes/reservation-routes.js';
+import {
+  readCommentsCache,
+  writeCommentsCache,
+  appendImportLog
+} from './store/local-data-store.js';
 import {
   SHEET_NAMES,
   RUN_COL_INDEX,
@@ -19,11 +30,6 @@ import {
   WRITE_RETRY_LIMIT,
   WRITE_BACKOFF_BASE_MS,
   WRITE_BACKOFF_MAX_MS,
-  STATUS_FILE,
-  DATA_FILE,
-  COMMENTS_FILE,
-  IMPORT_LOG_FILE,
-  IMPORT_LOG_LIMIT,
   SCHOOL_DATASET_BASE,
   GITES
 } from './config.js';
@@ -40,65 +46,63 @@ dotenv.config({ path: path.resolve(__dirname, './.env') }); // <-- Changed line
 dayjs.extend(customParseFormat);
 dayjs.locale('fr');
 
+const spreadsheetId = process.env.SPREAD_SHEET_ID;
+const sheetsClient = createSheetsClient({
+  spreadsheetId,
+  credentialsPath: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  fetchFn: fetch,
+  writeThrottleMs: WRITE_THROTTLE_MS,
+  writeRetryLimit: WRITE_RETRY_LIMIT,
+  writeBackoffBaseMs: WRITE_BACKOFF_BASE_MS,
+  writeBackoffMaxMs: WRITE_BACKOFF_MAX_MS
+});
+const {
+  requestWrite,
+  getAccessToken,
+  getSheetId,
+  fetchSheetValues
+} = sheetsClient;
+
 const app = express();
 app.use(cors());
 // Increase JSON body limit to allow large HAR uploads
 app.use(express.json({ limit: '50mb' }));
-
-const spreadsheetId = process.env.SPREAD_SHEET_ID;
-let lastWriteAt = 0;
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function parseRetryAfterMs(res) {
-  const value = res.headers.get('retry-after');
-  if (!value) return 0;
-  const seconds = Number(value);
-  if (!Number.isFinite(seconds)) return 0;
-  return Math.max(0, seconds * 1000);
-}
-
-function isRetryableWriteStatus(status) {
-  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
-}
-
-async function throttleWrite() {
-  const now = Date.now();
-  const waitMs = lastWriteAt + WRITE_THROTTLE_MS - now;
-  if (waitMs > 0) {
-    await sleep(waitMs);
-  }
-  lastWriteAt = Date.now();
-}
-
-async function requestWrite(url, options, { expectJson = true } = {}) {
-  let attempt = 0;
-  let delayMs = 0;
-  while (attempt <= WRITE_RETRY_LIMIT) {
-    if (delayMs > 0) {
-      await sleep(delayMs);
-    }
-    await throttleWrite();
-    const res = await fetch(url, options);
-    if (res.ok) {
-      return expectJson ? res.json() : res.text();
-    }
-
-    const bodyText = await res.text().catch(() => '');
-    if (!isRetryableWriteStatus(res.status) || attempt === WRITE_RETRY_LIMIT) {
-      throw new Error(`Sheets write error ${res.status}: ${bodyText}`);
-    }
-
-    const retryAfterMs = parseRetryAfterMs(res);
-    const backoff = Math.min(WRITE_BACKOFF_BASE_MS * (2 ** attempt), WRITE_BACKOFF_MAX_MS);
-    const jitter = Math.floor(Math.random() * 200);
-    delayMs = Math.max(backoff + jitter, retryAfterMs);
-    attempt += 1;
-  }
-  throw new Error('Sheets write error: retry limit exceeded');
-}
+app.use('/api', createAdminRouter());
+app.use('/api', createArrivalsRouter({
+  awaitIcalLoadIfNeeded,
+  startIcalLoad,
+  getReservations: () => reservations,
+  getErrors: () => erreurs
+}));
+app.use('/api', createCommentsRouter({
+  sheetNames: SHEET_NAMES,
+  readCommentsCache,
+  commentsKey,
+  refreshCommentsForAllGitesInRange,
+  refreshSingleComment
+}));
+app.use('/api', createImportRouter({
+  backendDir: __dirname,
+  parseHarReservationsByListing,
+  writeTextFileQueued,
+  resolveGiteId,
+  sheetNames: SHEET_NAMES,
+  splitReservationByMonth,
+  buildPreviewResponse,
+  awaitIcalLoadIfNeeded,
+  startIcalLoad,
+  buildIcalFlatReservations,
+  importReservationsToSheets,
+  buildImportLogEntry,
+  recordImportLog
+}));
+app.use('/api', createReservationRouter({
+  sheetNames: SHEET_NAMES,
+  spreadsheetId,
+  getAccessToken,
+  getSheetId,
+  fetchFn: fetch
+}));
 
 function normalizeHeaderName(value) {
   return String(value || '')
@@ -252,67 +256,6 @@ function buildSheetColumns(header) {
 
 function getSheetRowLength(columns) {
   return Math.max(columns.header.length, columns.highlightCols, RUN_COL_INDEX);
-}
-
-function base64url(str) {
-  return Buffer.from(str)
-    .toString('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-}
-
-async function getAccessToken() {
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  const creds = JSON.parse(fs.readFileSync(keyPath, 'utf-8'));
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const claim = base64url(
-    JSON.stringify({
-      iss: creds.client_email,
-      scope: 'https://www.googleapis.com/auth/spreadsheets',
-      aud: 'https://oauth2.googleapis.com/token',
-      exp: now + 3600,
-      iat: now
-    })
-  );
-  const unsigned = `${header}.${claim}`;
-  const sign = crypto.createSign('RSA-SHA256');
-  sign.update(unsigned);
-  const signature = base64url(sign.sign(creds.private_key));
-  const jwt = `${unsigned}.${signature}`;
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Token request failed');
-  return data.access_token;
-}
-
-async function getSheetId(sheetName, token) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const data = await res.json();
-  const sheet = data.sheets.find(s => s.properties.title === sheetName);
-  return sheet.properties.sheetId;
-}
-
-async function fetchSheetValues(range, token) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Sheets values error ${res.status}: ${text}`);
-  }
-  const data = await res.json();
-  return data.values || [];
 }
 
 async function fetchSheetHeaderAndRows(sheetName, token) {
@@ -535,6 +478,52 @@ function splitReservationByMonth(reservation) {
   return segments.length ? segments : [reservation];
 }
 
+function findShiftedAirbnbExistingMatch(existingIndex, columns, reservation) {
+  if (!existingIndex || !columns || !reservation) return null;
+  if (reservation.type !== 'airbnb') return null;
+  if (columns.iDebut === -1 || columns.iFin === -1) return null;
+
+  const sourceLabel = normalizeSourceLabel(reservation.source);
+  if (sourceLabel && sourceLabel.toLowerCase() !== 'airbnb') return null;
+
+  const incomingStart = dayjs(reservation.checkIn, 'YYYY-MM-DD', true);
+  if (!incomingStart.isValid()) return null;
+
+  // Airbnb iCal peut glisser la date d'arrivée pour un séjour en cours.
+  // On limite cette tolérance aux arrivées non futures pour éviter les faux positifs.
+  if (incomingStart.isAfter(dayjs().startOf('day'), 'day')) return null;
+
+  for (const [key, existingEntry] of existingIndex.entries()) {
+    const row = existingEntry?.row || [];
+    const existingStartIso = parseSheetDateToIso(row[columns.iDebut]);
+    const existingEndIso = parseSheetDateToIso(row[columns.iFin]);
+    if (!existingStartIso || !existingEndIso) continue;
+    if (existingEndIso !== reservation.checkOut) continue;
+
+    const existingStart = dayjs(existingStartIso, 'YYYY-MM-DD', true);
+    if (!existingStart.isValid()) continue;
+    if (!existingStart.isBefore(incomingStart, 'day')) continue;
+
+    const paymentValue = columns.colPaiement ? row[columns.colPaiement - 1] : '';
+    const paymentLabel = normalizeSourceLabel(paymentValue);
+    if (paymentLabel.toLowerCase() !== 'airbnb') continue;
+
+    return { key, entry: existingEntry, shifted: true };
+  }
+
+  return null;
+}
+
+function resolveExistingReservationMatch(existingIndex, columns, giteId, reservation) {
+  if (!existingIndex || !columns || !giteId || !reservation) return null;
+  const key = `${giteId}|${reservation.checkIn}|${reservation.checkOut}`;
+  const exactEntry = existingIndex.get(key);
+  if (exactEntry) {
+    return { key, entry: exactEntry, shifted: false };
+  }
+  return findShiftedAirbnbExistingMatch(existingIndex, columns, reservation);
+}
+
 async function buildPreviewResponse(flatReservations) {
   const token = await getAccessToken();
   const giteIds = Array.from(
@@ -546,8 +535,7 @@ async function buildPreviewResponse(flatReservations) {
     const { header, rows } = await fetchSheetHeaderAndRows(sheetName, token);
     const columns = buildSheetColumns(header);
     const index = buildExistingReservationIndex(rows, columns, giteId);
-    const keys = new Set(index.keys());
-    existingByGite[giteId] = { columns, keys, index };
+    existingByGite[giteId] = { columns, index };
   }
 
   const counts = {
@@ -566,7 +554,6 @@ async function buildPreviewResponse(flatReservations) {
   const reservationsPreview = flatReservations.map((r, idx) => {
     const start = dayjs(r.checkIn, 'YYYY-MM-DD', true);
     const end = dayjs(r.checkOut, 'YYYY-MM-DD', true);
-    const key = r.giteId ? `${r.giteId}|${r.checkIn}|${r.checkOut}` : null;
     let status = 'new';
     let reason = '';
     let priceMissing = false;
@@ -589,9 +576,12 @@ async function buildPreviewResponse(flatReservations) {
       status = 'outside_year';
       reason = 'hors année';
       counts.outsideYear += 1;
-    } else if (existingByGite[r.giteId]?.keys?.has(key)) {
-      const existingEntry = existingByGite[r.giteId]?.index?.get(key);
+    } else {
       const columns = existingByGite[r.giteId]?.columns;
+      const index = existingByGite[r.giteId]?.index;
+      const existingMatch = resolveExistingReservationMatch(index, columns, r.giteId, r);
+      const existingEntry = existingMatch?.entry || null;
+
       if (existingEntry && columns) {
         if (r.type === 'airbnb' && typeof r.payout === 'number') {
           priceMissing = isEmptyCell(existingEntry.row[columns.colPrixNuit - 1])
@@ -604,36 +594,40 @@ async function buildPreviewResponse(flatReservations) {
           nameMissing = isEmptyCell(existingEntry.row[columns.colNom - 1]);
         }
       }
-      if (priceMissing || commentMissing || nameMissing) {
-        if (priceMissing && commentMissing) {
-          status = 'price_comment_missing';
-        } else if (priceMissing) {
-          status = 'price_missing';
-        } else if (commentMissing) {
-          status = 'comment_missing';
+      if (existingEntry) {
+        if (priceMissing || commentMissing || nameMissing) {
+          if (priceMissing && commentMissing) {
+            status = 'price_comment_missing';
+          } else if (priceMissing) {
+            status = 'price_missing';
+          } else if (commentMissing) {
+            status = 'comment_missing';
+          } else {
+            status = 'name_missing';
+          }
+
+          const missingFields = [];
+          if (priceMissing) missingFields.push('prix');
+          if (commentMissing) missingFields.push('commentaire');
+          if (nameMissing) missingFields.push('nom');
+          if (missingFields.length) {
+            reason = `${missingFields.join(' et ')} manquant${missingFields.length > 1 ? 's' : ''} dans la feuille`;
+          }
+
+          if (priceMissing) counts.priceMissing += 1;
+          if (commentMissing) counts.commentMissing += 1;
+          if (nameMissing) counts.nameMissing += 1;
+          if (priceMissing && commentMissing) counts.priceCommentMissing += 1;
         } else {
-          status = 'name_missing';
+          status = 'existing';
+          reason = existingMatch.shifted
+            ? 'déjà présent (arrivée iCal glissante)'
+            : 'déjà présent';
+          counts.existing += 1;
         }
-
-        const missingFields = [];
-        if (priceMissing) missingFields.push('prix');
-        if (commentMissing) missingFields.push('commentaire');
-        if (nameMissing) missingFields.push('nom');
-        if (missingFields.length) {
-          reason = `${missingFields.join(' et ')} manquant${missingFields.length > 1 ? 's' : ''} dans la feuille`;
-        }
-
-        if (priceMissing) counts.priceMissing += 1;
-        if (commentMissing) counts.commentMissing += 1;
-        if (nameMissing) counts.nameMissing += 1;
-        if (priceMissing && commentMissing) counts.priceCommentMissing += 1;
       } else {
-        status = 'existing';
-        reason = 'déjà présent';
-        counts.existing += 1;
+        counts.new += 1;
       }
-    } else {
-      counts.new += 1;
     }
 
     if (r.giteName) {
@@ -761,8 +755,10 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
           continue;
         }
         const key = `${giteId}|${seg.checkIn}|${seg.checkOut}`;
-        const existingEntry = existingIndex.get(key);
+        const existingMatch = resolveExistingReservationMatch(existingIndex, columns, giteId, seg);
+        const existingEntry = existingMatch?.entry || null;
         if (existingEntry) {
+          const matchKey = existingMatch?.key || key;
           const prixValue = existingEntry.row[columns.colPrixNuit - 1];
           const revenusValue = existingEntry.row[columns.colRevenus - 1];
           const missingPrix = isEmptyCell(prixValue);
@@ -782,7 +778,7 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
           const needsCommentUpdate = allowCommentUpdate && missingComment;
           const needsNameUpdate = missingName;
           if (needsPriceUpdate || needsCommentUpdate || needsNameUpdate) {
-            if (!updatedKeys.has(key)) {
+            if (!updatedKeys.has(matchKey)) {
               const rowNumber = existingEntry.rowNumber;
               const updateStart = existingUpdates.length;
               if (needsPriceUpdate && missingRevenus) {
@@ -818,7 +814,7 @@ async function importReservationsToSheets(incomingReservations, options = {}) {
               }
               if (existingUpdates.length > updateStart) {
                 summary.updated += 1;
-                updatedKeys.add(key);
+                updatedKeys.add(matchKey);
               } else {
                 summary.skipped.duplicate += 1;
               }
@@ -1132,104 +1128,6 @@ async function postProcessHarSheet({ sheetName, sheetId, columns, token }) {
   await insertMonthSeparators({ sheetName, sheetId, token, dateColIndex, colCount });
 }
 
-function readStatuses() {
-  if (!fs.existsSync(STATUS_FILE)) return {};
-  return JSON.parse(fs.readFileSync(STATUS_FILE, 'utf-8'));
-}
-
-function writeStatuses(data) {
-  fs.writeFileSync(STATUS_FILE, JSON.stringify(data, null, 2));
-}
-
-function readData() {
-  try {
-    if (!fs.existsSync(DATA_FILE)) return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    if (!raw || !raw.trim()) return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
-    // normalize keys
-    if (!Array.isArray(parsed.prices)) parsed.prices = [];
-    if (!Array.isArray(parsed.texts)) parsed.texts = [];
-    if (!Array.isArray(parsed.themes)) parsed.themes = [];
-    if (!parsed.activeThemeId) parsed.activeThemeId = 'default';
-    return parsed;
-  } catch (e) {
-    console.error('Failed to read data.json:', e.message);
-    return { prices: [], texts: [], themes: [], activeThemeId: 'default' };
-  }
-}
-
-function writeData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
-function readPrices() {
-  return readData().prices || [];
-}
-
-function writePrices(prices) {
-  const data = readData();
-  data.prices = prices;
-  writeData(data);
-}
-
-function readTexts() {
-  return readData().texts || [];
-}
-
-function writeTexts(texts) {
-  const data = readData();
-  data.texts = texts;
-  writeData(data);
-}
-
-// --- Comments cache helpers ---
-function readCommentsCache() {
-  try {
-    if (!fs.existsSync(COMMENTS_FILE)) return {};
-    const raw = fs.readFileSync(COMMENTS_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (e) {
-    console.error('Failed to read comments cache:', e.message);
-    return {};
-  }
-}
-
-function writeCommentsCache(cache) {
-  try {
-    fs.writeFileSync(COMMENTS_FILE, JSON.stringify(cache, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Failed to write comments cache:', e.message);
-  }
-}
-
-function readImportLog() {
-  try {
-    if (!fs.existsSync(IMPORT_LOG_FILE)) return [];
-    const raw = fs.readFileSync(IMPORT_LOG_FILE, 'utf-8');
-    if (!raw || !raw.trim()) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.error('Failed to read import log:', e.message);
-    return [];
-  }
-}
-
-function writeImportLog(entries) {
-  fs.writeFileSync(IMPORT_LOG_FILE, JSON.stringify(entries, null, 2));
-}
-
-function appendImportLog(entry) {
-  const log = readImportLog();
-  log.unshift(entry);
-  const trimmed = log.slice(0, IMPORT_LOG_LIMIT);
-  writeImportLog(trimmed);
-  return trimmed;
-}
-
 function buildImportLogEntry({ source, selectionCount, summary }) {
   const skipped = summary?.skipped || {};
   return {
@@ -1250,9 +1148,9 @@ function buildImportLogEntry({ source, selectionCount, summary }) {
   };
 }
 
-function recordImportLog(entry) {
+async function recordImportLog(entry) {
   try {
-    appendImportLog(entry);
+    await appendImportLog(entry);
   } catch (e) {
     console.error('Failed to write import log:', e.message);
   }
@@ -1316,7 +1214,7 @@ async function refreshCommentsForAllGitesInRange(startIso, endIso) {
   // Write if changed
   const before = JSON.stringify(currentCache);
   const after = JSON.stringify(updatedCache);
-  if (before !== after) writeCommentsCache(updatedCache);
+  if (before !== after) await writeCommentsCache(updatedCache);
 }
 
 async function refreshSingleComment(giteId, isoDate) {
@@ -1344,7 +1242,7 @@ async function refreshSingleComment(giteId, isoDate) {
       const prev = cache[key] || {};
       if (prev.comment !== found.comment || prev.phone !== found.phone) {
         cache[key] = { ...found, updatedAt: new Date().toISOString() };
-        writeCommentsCache(cache);
+        await writeCommentsCache(cache);
       }
     }
   } catch (e) {
@@ -1683,37 +1581,6 @@ function formatIcalDate(d) {
 // Chargement des calendriers au démarrage (en arrière-plan)
 startIcalLoad({ reset: true });
 
-// --- Endpoint JSON ---
-app.get('/api/arrivals', async (req, res) => {
-  await awaitIcalLoadIfNeeded();
-  const today = dayjs().startOf('day');
-  const startWindow = today.subtract(5, 'day');
-  const endWindow = reservations.reduce((max, ev) => {
-    const fin = dayjs(ev.fin);
-    return fin.isAfter(max) ? fin : max;
-  }, startWindow);
-  const dates = [];
-  for (let d = startWindow; !d.isAfter(endWindow); d = d.add(1, 'day')) {
-    dates.push(d.format('YYYY-MM-DD'));
-  }
-  res.json({
-    genereLe: new Date().toISOString(),
-    reservations,
-    erreurs: Array.from(erreurs),
-    dates
-  });
-});
-
-app.post('/api/reload-icals', async (req, res) => {
-  try {
-    await awaitIcalLoadIfNeeded();
-    await startIcalLoad({ reset: true });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // Endpoint de debug pour inspecter les doublons et le dédoublonnage
 // Usage: GET /api/debug-duplicates?giteId=gree&day=YYYY-MM-DD
 app.get('/api/debug-duplicates', (req, res) => {
@@ -1787,187 +1654,6 @@ app.get('/api/school-holidays', (req, res) => {
   res.json(filtered);
 });
 
-// Récupération des statuts
-app.get('/api/statuses', (req, res) => {
-  res.json(readStatuses());
-});
-
-// Mise à jour d'un statut
-app.post('/api/statuses/:id', (req, res) => {
-  const statuses = readStatuses();
-  statuses[req.params.id] = { done: req.body.done, user: req.body.user };
-  writeStatuses(statuses);
-  res.json(statuses[req.params.id]);
-});
-
-app.get('/api/import-log', (req, res) => {
-  const rawLimit = parseInt(req.query.limit, 10);
-  const log = readImportLog();
-  const limit = Number.isFinite(rawLimit) && rawLimit > 0
-    ? Math.min(rawLimit, IMPORT_LOG_LIMIT)
-    : 5;
-  res.json({ entries: log.slice(0, limit), total: log.length });
-});
-
-// Récupération des commentaires pour une plage de dates
-app.get('/api/comments-range', async (req, res) => {
-  const { start, end } = req.query;
-  if (!start || !end) {
-    return res.status(400).json({ success: false, error: 'Missing date range' });
-  }
-  try {
-    const startDate = dayjs(start, 'YYYY-MM-DD');
-    const endDate = dayjs(end, 'YYYY-MM-DD');
-
-    // 1) Immediate cached response
-    const cache = readCommentsCache();
-    const results = {};
-    for (const [giteId] of Object.entries(SHEET_NAMES)) {
-      // Scan cache keys for this gite within range
-      for (const [key, val] of Object.entries(cache)) {
-        if (!key.startsWith(`${giteId}_`)) continue;
-        const iso = key.slice(giteId.length + 1);
-        const d = dayjs(iso, 'YYYY-MM-DD');
-        if (!d.isValid()) continue;
-        if (!d.isBefore(startDate) && !d.isAfter(endDate)) {
-          results[key] = { comment: val.comment || '', phone: val.phone || '' };
-        }
-      }
-    }
-    res.json(results);
-
-    // 2) Background refresh and cache update
-    refreshCommentsForAllGitesInRange(start, end).catch(err => {
-      console.error('Background refresh failed:', err.message);
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Récupération d'un commentaire de Google Sheet
-app.get('/api/comments/:giteId/:date', async (req, res) => {
-  const { giteId, date } = req.params;
-  const sheetName = SHEET_NAMES[giteId];
-  if (!sheetName) {
-    return res.status(400).json({ success: false, error: 'Invalid gite' });
-  }
-  try {
-    // 1) Serve cached immediately
-    const cache = readCommentsCache();
-    const key = commentsKey(giteId, date);
-    const cached = cache[key];
-    const immediate = cached?.comment || 'pas de commentaires';
-    res.json({ comment: immediate, phone: cached?.phone || '' });
-
-    // 2) Background refresh and cache update
-    refreshSingleComment(giteId, date).catch(err => {
-      console.error('Background single refresh failed:', err.message);
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Gestion des tarifs
-app.get('/api/prices', (req, res) => {
-  res.json(readPrices());
-});
-
-app.post('/api/prices', (req, res) => {
-  writePrices(req.body || []);
-  res.json({ success: true });
-});
-
-// Gestion des textes SMS
-app.get('/api/texts', (req, res) => {
-  res.json(readTexts());
-});
-
-app.post('/api/texts', (req, res) => {
-  writeTexts(req.body || []);
-  res.json({ success: true });
-});
-
-// Import/export des données complètes
-app.get('/api/data', (req, res) => {
-  res.json(readData());
-});
-
-app.post('/api/data', (req, res) => {
-  writeData(req.body || { prices: [], texts: [] });
-  res.json({ success: true });
-});
-
-// Upload a HAR file and save it into the backend folder
-app.post('/api/upload-har', (req, res) => {
-  try {
-    const dest = path.join(__dirname, 'www.airbnb.fr.har');
-    // req.body contains the parsed JSON of the HAR
-    fs.writeFileSync(dest, JSON.stringify(req.body || {}, null, 2), 'utf-8');
-    res.json({ success: true, path: dest });
-  } catch (err) {
-    console.error('Failed to save HAR:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Exposer le JSON parsé depuis le fichier HAR uploadé
-app.get('/api/har-calendar', (req, res) => {
-  try {
-    const harPath = path.join(__dirname, 'www.airbnb.fr.har');
-    if (!fs.existsSync(harPath)) {
-      return res.status(404).json({ success: false, error: 'HAR not found' });
-    }
-    const har = JSON.parse(fs.readFileSync(harPath, 'utf-8'));
-    const data = parseHarReservationsByListing(har);
-    res.json(data);
-  } catch (err) {
-    console.error('Failed to parse HAR:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post('/api/har/preview', async (req, res) => {
-  try {
-    const har = req.body || {};
-    const parsed = parseHarReservationsByListing(har);
-    const flat = [];
-    for (const [listingName, items] of Object.entries(parsed || {})) {
-      const giteId = resolveGiteId(listingName);
-      const sheetName = giteId ? SHEET_NAMES[giteId] : null;
-      for (const item of items || []) {
-        const baseReservation = {
-          type: item.type || 'personal',
-          checkIn: item.checkIn,
-          checkOut: item.checkOut,
-          nights: item.nights,
-          name: item.name || '',
-          payout: typeof item.payout === 'number' ? item.payout : null,
-          comment: item.comment || ''
-        };
-        const segments = splitReservationByMonth(baseReservation);
-        for (const seg of segments) {
-          flat.push({
-            giteId,
-            giteName: listingName,
-            sheetName,
-            ...seg
-          });
-        }
-      }
-    }
-
-    const preview = await buildPreviewResponse(flat);
-    res.json({ success: true, ...preview });
-  } catch (err) {
-    console.error('Failed to preview HAR:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 function buildIcalFlatReservations() {
   const flat = [];
   const sourceReservations = Array.isArray(reservations) ? reservations : [];
@@ -1998,217 +1684,6 @@ function buildIcalFlatReservations() {
   }
   return flat;
 }
-
-app.post('/api/ical/preview', async (req, res) => {
-  try {
-    await awaitIcalLoadIfNeeded();
-    const flat = buildIcalFlatReservations();
-    const preview = await buildPreviewResponse(flat);
-    res.json({ success: true, ...preview });
-  } catch (err) {
-    console.error('Failed to preview ICAL:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-async function handleIcalImport(req, res) {
-  try {
-    await awaitIcalLoadIfNeeded();
-    await startIcalLoad({ reset: true });
-    await awaitIcalLoadIfNeeded();
-
-    const flat = buildIcalFlatReservations();
-    const preview = await buildPreviewResponse(flat);
-    const importable = (preview.reservations || []).filter(r => (
-      r.status === 'new'
-      || r.status === 'price_missing'
-      || r.status === 'comment_missing'
-      || r.status === 'price_comment_missing'
-      || r.status === 'name_missing'
-    ));
-
-    const summary = await importReservationsToSheets(importable, { allowCommentUpdate: false });
-    recordImportLog(buildImportLogEntry({
-      source: 'ical',
-      selectionCount: importable.length,
-      summary
-    }));
-    res.json({ success: true, selectionCount: importable.length, ...summary });
-  } catch (err) {
-    console.error('Failed to import ICAL:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-}
-
-app.post('/api/ical/import', handleIcalImport);
-app.get('/api/ical/import', handleIcalImport);
-
-app.post('/api/har/import', async (req, res) => {
-  try {
-    const incomingReservations = Array.isArray(req.body?.reservations) ? req.body.reservations : [];
-    if (incomingReservations.length === 0) {
-      return res.status(400).json({ success: false, error: 'No reservations provided' });
-    }
-
-    const summary = await importReservationsToSheets(incomingReservations);
-    recordImportLog(buildImportLogEntry({
-      source: 'har',
-      selectionCount: incomingReservations.length,
-      summary
-    }));
-    res.json({ success: true, ...summary });
-  } catch (err) {
-    console.error('Failed to import HAR:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post('/api/save-reservation', async (req, res) => {
-  try {
-    const { giteId, name, start, end, summary, price, phone } = req.body;
-    const sheetName = SHEET_NAMES[giteId];
-    if (!sheetName) return res.status(400).json({ success: false, error: 'Invalid gite' });
-
-    const token = await getAccessToken();
-    const sheetId = await getSheetId(sheetName, token);
-
-    const valueRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B2:C`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const valueData = await valueRes.json();
-    const rows = valueData.values || [];
-    const startDate = dayjs(start, 'DD/MM/YYYY');
-    const endDate = dayjs(end, 'DD/MM/YYYY');
-
-    let idx = rows.findIndex(r => {
-      const rowStart = dayjs(r[0], 'DD/MM/YYYY');
-      const rowEnd = dayjs(r[1], 'DD/MM/YYYY');
-      return startDate.isBefore(rowStart) || (startDate.isSame(rowStart) && endDate.isBefore(rowEnd));
-    });
-    if (idx === -1) idx = rows.length;
-    const insertRow = idx + 2;
-
-    // Helper to insert a single highlighted row at a given index
-    async function insertHighlightedRow(rowIndex) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          requests: [
-            {
-              insertDimension: {
-                range: { sheetId, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex },
-                inheritFromBefore: false
-              }
-            },
-            {
-              repeatCell: {
-                range: {
-                  sheetId,
-                  startRowIndex: rowIndex - 1,
-                  endRowIndex: rowIndex,
-                  startColumnIndex: 0,
-                  endColumnIndex: 11
-                },
-                cell: { userEnteredFormat: { backgroundColor: { red: 0.8, green: 0.9, blue: 1 } } },
-                fields: 'userEnteredFormat.backgroundColor'
-              }
-            }
-          ]
-        })
-      });
-    }
-
-    const priceValue = typeof price === 'number' ? price : '';
-    // Prefer explicit phone field; fallback to extracting from summary (pattern "T: <phone>")
-    let phoneValue = '';
-    if (typeof phone === 'string' && phone.trim()) {
-      phoneValue = phone.trim();
-    } else if (typeof summary === 'string') {
-      const m = summary.match(/\bT:\s*([0-9 +().-]+)/);
-      phoneValue = m ? m[1].trim() : '';
-    }
-
-    // Build monthly chunks if the reservation spans multiple months
-    const chunks = [];
-    if (startDate.isValid() && endDate.isValid()) {
-      let cur = startDate.startOf('day');
-      const endD = endDate.startOf('day');
-      while (cur.isBefore(endD, 'day')) {
-        const nextMonthStart = cur.add(1, 'month').startOf('month');
-        const stop = endD.isBefore(nextMonthStart) ? endD : nextMonthStart;
-        if (stop.isAfter(cur, 'day')) {
-          chunks.push({
-            start: cur,
-            end: stop
-          });
-        }
-        cur = stop;
-      }
-    } else {
-      // Fallback: single chunk with raw strings if dates are invalid
-      chunks.push({ start: startDate, end: endDate });
-    }
-
-    // Insert each chunk in order, updating our local rows array to preserve ordering
-    let insertOffset = 0;
-    for (const ch of chunks) {
-      // Compute position for this chunk among current rows
-      let idx2 = rows.findIndex(r => {
-        const rowStart = dayjs(r[0], 'DD/MM/YYYY');
-        const rowEnd = dayjs(r[1], 'DD/MM/YYYY');
-        return ch.start.isBefore(rowStart) || (ch.start.isSame(rowStart) && ch.end.isBefore(rowEnd));
-      });
-      if (idx2 === -1) idx2 = rows.length;
-      const rowNumber = idx2 + 2 + insertOffset; // +2 for header offset, +insertOffset for prior inserts
-
-      // Insert highlighted row
-      await insertHighlightedRow(rowNumber);
-
-      // Compute additional columns for this chunk
-      const startStr = ch.start.format('DD/MM/YYYY');
-      const endStr = ch.end.format('DD/MM/YYYY');
-      const monthName = ch.start.format('MMMM');
-      const nights = Math.max(ch.end.diff(ch.start, 'day'), 0);
-      const capacity = giteId === 'liberte' ? 10 : 2; // Column F
-      const formulaH = `=G${rowNumber}*E${rowNumber}`; // Column H
-      const statusI = 'A définir';
-
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A${rowNumber}:K${rowNumber}?valueInputOption=USER_ENTERED`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            values: [[
-              name,                          // A
-              startStr,                      // B
-              endStr,                        // C
-              monthName,                     // D
-              nights,                        // E
-              capacity,                      // F
-              priceValue,                    // G
-              formulaH,                      // H
-              statusI,                       // I
-              summary.replace(/\n/g, ' '),  // J
-              phoneValue                     // K
-            ]]
-          })
-        }
-      );
-
-      // Update local representation of rows to include this new row
-      rows.splice(idx2, 0, [startStr, endStr]);
-      insertOffset += 1;
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 
 // --- Servir le build React ---
 // Chemin absolu vers le dossier build de React

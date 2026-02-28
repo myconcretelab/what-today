@@ -2,11 +2,12 @@
   "name": "what-today-frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"No tests\""
+    "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

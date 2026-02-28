@@ -58,8 +58,22 @@ Définissez le mot de passe attendu côté frontend via une variable
 d'environnement `VITE_PASSWORD` (par défaut : `secret`).
 
 ## Tests
-Aucun test automatisé n'est encore défini. Les commandes `npm test` dans les
-sous‑projets affichent simplement un message.
+Des tests unitaires de base sont disponibles sur les deux sous-projets.
+
+```bash
+# Backend
+cd backend
+npm test
+
+# Frontend
+cd ../frontend
+CI=true npm test
+```
+
+Une CI GitHub Actions exécute automatiquement:
+- les tests backend
+- les tests frontend
+- le build frontend
 
 ## Architecture
 ```
