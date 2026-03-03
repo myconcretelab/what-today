@@ -7,6 +7,7 @@ sous forme d'une liste et d'un petit calendrier coloré.
 
 ## Fonctionnalités
 - Chargement des calendriers iCal (Airbnb, Abritel, etc.) au démarrage du serveur.
+- La disponibilité affichée (gîte libre/occupé) est calculée uniquement à partir des flux iCal.
 - Gestion du cas particulier `Airbnb (Not available)` transformé en "Réservation en direct".
 - Endpoint JSON `/api/arrivals` exposant les arrivées des 7 prochains jours.
 - Interface React Material‑UI : mot de passe à la première connexion (stocké en
@@ -46,6 +47,7 @@ une seule fois au démarrage.
 
 ### Stockage des réservations via `contrats`
 Le backend écrit/lit les réservations via l'API du repo `contrats`.
+Cette base sert aux commentaires et à l'enregistrement des réservations, mais ne pilote pas le statut de disponibilité affiché dans `what-today` (iCal uniquement).
 
 Variables à définir dans `backend/.env` :
 - `CONTRATS_API_BASE_URL` (ex: `http://localhost:4000`)

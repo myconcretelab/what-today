@@ -123,12 +123,7 @@ function overlapsCurrentYear(startIso, endIso) {
 }
 
 function toIsoDate(value) {
-  if (typeof value === 'string') {
-    const directMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (directMatch && directMatch[1]) return directMatch[1];
-  } else if (!(value instanceof Date)) {
-    return null;
-  }
+  if (typeof value !== 'string') return null;
   const parsed = dayjs(value);
   return parsed.isValid() ? parsed.format(DATE_ISO_FORMAT) : null;
 }
@@ -207,7 +202,6 @@ export function createContratsIntegration({
   const staticExplicitMap = parseExplicitMap(explicitGiteMap);
   const explicitMapProvider = typeof getExplicitGiteMap === 'function' ? getExplicitGiteMap : null;
   const knownGites = Array.isArray(gites) ? gites : [];
-  const knownGitesByAliasId = new Map(knownGites.map(gite => [gite.id, gite]));
 
   let gitesCache = null;
   let gitesCacheAt = 0;
@@ -482,47 +476,6 @@ export function createContratsIntegration({
       comment: comment || 'pas de commentaires',
       phone: extractPhone(comment)
     };
-  }
-
-  async function listAvailabilityReservations({ years } = {}) {
-    const mappings = await getGiteMappings();
-    const requestedYears = Array.isArray(years) && years.length > 0
-      ? years
-      : [dayjs().year(), dayjs().add(1, 'year').year()];
-    const rows = await listReservationsByYears(requestedYears);
-    const mapped = [];
-
-    for (const row of rows) {
-      if (!row || typeof row !== 'object') continue;
-
-      const aliasId = mappings.contratsToAliasId.get(row.gite_id);
-      if (!aliasId) continue;
-
-      const checkIn = toIsoDate(row.date_entree);
-      const checkOut = toIsoDate(row.date_sortie);
-      const checkInDate = parseIsoDate(checkIn);
-      const checkOutDate = parseIsoDate(checkOut);
-
-      if (!checkInDate || !checkOutDate || !checkOutDate.isAfter(checkInDate, 'day')) continue;
-
-      const localGite = knownGitesByAliasId.get(aliasId);
-      const fallbackName = typeof row?.gite?.nom === 'string' && row.gite.nom.trim()
-        ? row.gite.nom.trim()
-        : aliasId;
-
-      mapped.push({
-        giteId: aliasId,
-        giteNom: localGite?.nom || fallbackName,
-        couleur: localGite?.couleur || '',
-        source: normalizeSourceLabel(row.source_paiement) || 'A définir',
-        debut: checkIn,
-        fin: checkOut,
-        resume: typeof row.hote_nom === 'string' ? row.hote_nom : 'Réservation',
-        airbnbUrl: ''
-      });
-    }
-
-    return mapped;
   }
 
   async function buildPreviewResponse(flatReservations) {
@@ -837,7 +790,6 @@ export function createContratsIntegration({
   return {
     enabled,
     listContratsGites,
-    listAvailabilityReservations,
     saveManualReservation,
     fetchCommentsRange,
     fetchSingleComment,
