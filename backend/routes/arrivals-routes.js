@@ -11,7 +11,8 @@ export function createArrivalsRouter({
 
   router.get('/arrivals', async (req, res) => {
     await awaitIcalLoadIfNeeded();
-    const reservations = Array.isArray(getReservations()) ? getReservations() : [];
+    const loadedReservations = await Promise.resolve(getReservations());
+    const reservations = Array.isArray(loadedReservations) ? loadedReservations : [];
     const errors = getErrors();
     const today = dayjs().startOf('day');
     const startWindow = today.subtract(5, 'day');

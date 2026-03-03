@@ -58,7 +58,7 @@ app.use('/api', createAdminRouter({
 app.use('/api', createArrivalsRouter({
   awaitIcalLoadIfNeeded,
   startIcalLoad,
-  getReservations: () => reservations,
+  getReservations: () => getMergedReservations(),
   getErrors: () => erreurs
 }));
 
@@ -260,6 +260,9 @@ function formatIcalDate(value) {
 let reservations = [];
 let erreurs = new Set();
 let icalLoadPromise = null;
+let contratsReservationsCache = [];
+let contratsReservationsCacheAt = 0;
+const CONTRATS_RESERVATIONS_CACHE_TTL_MS = 60 * 1000;
 
 async function chargerCalendriers() {
   console.time('ical-load');
@@ -347,6 +350,36 @@ async function awaitIcalLoadIfNeeded() {
   } catch {
     // Error already logged in startIcalLoad.
   }
+}
+
+async function getContratsReservations({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && now - contratsReservationsCacheAt < CONTRATS_RESERVATIONS_CACHE_TTL_MS) {
+    return contratsReservationsCache;
+  }
+
+  const year = dayjs().year();
+  const years = [year - 1, year, year + 1];
+
+  try {
+    const mapped = await contratsIntegration.listAvailabilityReservations({ years });
+    contratsReservationsCache = Array.isArray(mapped) ? mapped : [];
+    contratsReservationsCacheAt = now;
+    return contratsReservationsCache;
+  } catch (err) {
+    console.error('Erreur de chargement des reservations contrats:', err.message);
+    contratsReservationsCache = [];
+    contratsReservationsCacheAt = now;
+    return [];
+  }
+}
+
+async function getMergedReservations() {
+  const contratsReservations = await getContratsReservations();
+  if (!Array.isArray(contratsReservations) || contratsReservations.length === 0) {
+    return reservations;
+  }
+  return dedupeReservations([...reservations, ...contratsReservations]);
 }
 
 startIcalLoad({ reset: true });
