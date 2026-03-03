@@ -70,7 +70,7 @@ function ArrivalsList({ bookings, errors, statuses, onStatusChange }) {
           const nextStr = JSON.stringify(data || {});
           return prevStr === nextStr ? prev : data;
         });
-        // The backend refreshes Google Sheets in background on first call.
+        // Trigger one delayed re-fetch to capture fresh data after backend sync.
         // Trigger one delayed re-fetch to capture fresh data once cache updates.
         if (attempt === 0) {
           timeoutId = setTimeout(() => {

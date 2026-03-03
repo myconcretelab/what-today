@@ -195,7 +195,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
       <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 1 }}>
-            2 - Enregistrer Google & Bloquer Airbnb
+            2 - Enregistrer la reservation et bloquer Airbnb
           </Typography>
           <TextField
             multiline
@@ -214,7 +214,7 @@ export function AvailabilityReservationPanel({ onBack, panelBg }) {
               disabled={saving || savedForRange}
             >
               {saving && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
-              {saveError ? 'Erreur !' : '1 Sauvegarder Google Sheets'}
+              {saveError ? 'Erreur !' : '1 Sauvegarder la reservation'}
             </Button>
             <Button
               variant="contained"

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { SHEET_NAMES } from '../config.js';
+import { GITES } from '../config.js';
 import {
   validateStatusUpdatePayload,
   validatePricesPayload,
@@ -17,7 +17,7 @@ import {
   writeData
 } from '../store/local-data-store.js';
 
-const VALID_GITE_IDS = new Set(Object.keys(SHEET_NAMES));
+const VALID_GITE_IDS = new Set(GITES.map(gite => gite.id));
 
 export function createAdminRouter({ listContratsGites } = {}) {
   const router = Router();

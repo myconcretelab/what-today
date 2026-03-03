@@ -1,17 +1,15 @@
 import { Router } from 'express';
-import dayjs from 'dayjs';
 import { validateDateRangeQuery, validateIsoDateParam } from '../validation.js';
 
 export function createCommentsRouter({
-  sheetNames,
-  readCommentsCache,
-  commentsKey,
-  refreshCommentsForAllGitesInRange,
-  refreshSingleComment,
+  validGiteIds,
   getCommentsRange,
   getSingleComment
 }) {
   const router = Router();
+  const giteIdSet = validGiteIds instanceof Set
+    ? validGiteIds
+    : new Set(Array.isArray(validGiteIds) ? validGiteIds : []);
 
   router.get('/comments-range', async (req, res) => {
     const { start, end } = req.query;
@@ -26,32 +24,15 @@ export function createCommentsRouter({
 
     const { start: startIso, end: endIso } = rangeValidation.value;
     try {
-      if (typeof getCommentsRange === 'function') {
-        const direct = await getCommentsRange(startIso, endIso);
-        return res.json(direct || {});
+      if (typeof getCommentsRange !== 'function') {
+        return res.status(500).json({
+          success: false,
+          error: 'Comments provider is not configured'
+        });
       }
 
-      const startDate = dayjs(startIso, 'YYYY-MM-DD', true);
-      const endDate = dayjs(endIso, 'YYYY-MM-DD', true);
-
-      const cache = readCommentsCache();
-      const results = {};
-      for (const [giteId] of Object.entries(sheetNames)) {
-        for (const [key, val] of Object.entries(cache)) {
-          if (!key.startsWith(`${giteId}_`)) continue;
-          const iso = key.slice(giteId.length + 1);
-          const d = dayjs(iso, 'YYYY-MM-DD');
-          if (!d.isValid()) continue;
-          if (!d.isBefore(startDate) && !d.isAfter(endDate)) {
-            results[key] = { comment: val.comment || '', phone: val.phone || '' };
-          }
-        }
-      }
-      res.json(results);
-
-      refreshCommentsForAllGitesInRange(startIso, endIso).catch(err => {
-        console.error('Background refresh failed:', err.message);
-      });
+      const direct = await getCommentsRange(startIso, endIso);
+      return res.json(direct || {});
     } catch (err) {
       console.error(err);
       res.status(500).json({ success: false, error: err.message });
@@ -60,8 +41,7 @@ export function createCommentsRouter({
 
   router.get('/comments/:giteId/:date', async (req, res) => {
     const { giteId, date } = req.params;
-    const sheetName = sheetNames[giteId];
-    if (!sheetName) {
+    if (!giteIdSet.has(giteId)) {
       return res.status(400).json({ success: false, error: 'Invalid gite' });
     }
 
@@ -72,20 +52,15 @@ export function createCommentsRouter({
     const isoDate = dateValidation.value;
 
     try {
-      if (typeof getSingleComment === 'function') {
-        const direct = await getSingleComment(giteId, isoDate);
-        return res.json(direct || { comment: 'pas de commentaires', phone: '' });
+      if (typeof getSingleComment !== 'function') {
+        return res.status(500).json({
+          success: false,
+          error: 'Comments provider is not configured'
+        });
       }
 
-      const cache = readCommentsCache();
-      const key = commentsKey(giteId, isoDate);
-      const cached = cache[key];
-      const immediate = cached?.comment || 'pas de commentaires';
-      res.json({ comment: immediate, phone: cached?.phone || '' });
-
-      refreshSingleComment(giteId, isoDate).catch(err => {
-        console.error('Background single refresh failed:', err.message);
-      });
+      const direct = await getSingleComment(giteId, isoDate);
+      return res.json(direct || { comment: 'pas de commentaires', phone: '' });
     } catch (err) {
       console.error(err);
       res.status(500).json({ success: false, error: err.message });

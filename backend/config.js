@@ -4,23 +4,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const SHEET_NAMES = {
-  phonsine: 'Phonsine',
-  gree: 'Gree',
-  edmond: 'Edmond',
-  liberte: 'Liberté'
-};
-
-export const RUN_COL_INDEX = 15;
-export const HAR_HIGHLIGHT_COLOR = { red: 1, green: 0.976, blue: 0.769 };
-export const WRITE_THROTTLE_MS = 1100;
-export const WRITE_RETRY_LIMIT = 5;
-export const WRITE_BACKOFF_BASE_MS = 500;
-export const WRITE_BACKOFF_MAX_MS = 8000;
-
 export const STATUS_FILE = path.join(__dirname, 'statuses.json');
 export const DATA_FILE = path.join(__dirname, 'data.json');
-export const COMMENTS_FILE = path.join(__dirname, 'comments-cache.json');
 
 export const SCHOOL_DATASET_BASE =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';

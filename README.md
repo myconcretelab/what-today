@@ -14,9 +14,7 @@ sous forme d'une liste et d'un petit calendrier coloré.
   colorées et icônes selon la plateforme, liste détaillée des arrivées.
 - Formatage des dates en français.
 - Affichage d'un `?` lorsqu'une source iCal est inaccessible.
-- Commentaires Google Sheets mis en cache côté serveur pour un affichage immédiat
-  (réponse depuis le cache, puis actualisation en arrière‑plan et mise à jour
-  automatique du cache si des changements sont détectés).
+- Commentaires et réservations lus/écrits via la base `contrats`.
 
 ## Pré‑requis
 - Node.js ≥ 18
@@ -46,9 +44,8 @@ npm run dev:frontend
 Le serveur écoute par défaut sur le port **3001** et charge les fichiers `ics`
 une seule fois au démarrage.
 
-### Stockage des réservations via `contrats` (recommandé)
-Le backend peut écrire/lire les réservations directement via l'API du repo `contrats`
-au lieu de Google Sheets.
+### Stockage des réservations via `contrats`
+Le backend écrit/lit les réservations via l'API du repo `contrats`.
 
 Variables à définir dans `backend/.env` :
 - `CONTRATS_API_BASE_URL` (ex: `http://localhost:4000`)
@@ -57,10 +54,8 @@ Variables à définir dans `backend/.env` :
 - `CONTRATS_GITE_MAP` (optionnel, mapping explicite des gîtes)
 
 Les commentaires de réservations sont exposés via:
-- `GET /api/comments-range?start=YYYY-MM-DD&end=YYYY-MM-DD` — renvoie d'abord
-  les valeurs du cache, puis déclenche une mise à jour en arrière‑plan depuis
-  Google Sheets qui met à jour le cache si nécessaire.
-- `GET /api/comments/:giteId/:date` — même logique cache‑d'abord + rafraîchissement.
+- `GET /api/comments-range?start=YYYY-MM-DD&end=YYYY-MM-DD` — lecture directe via `contrats`.
+- `GET /api/comments/:giteId/:date` — lecture directe via `contrats`.
 
 Définissez le mot de passe attendu côté frontend via une variable
 d'environnement `VITE_PASSWORD` (par défaut : `secret`).

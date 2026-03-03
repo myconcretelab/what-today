@@ -1,8 +1,7 @@
 import fs from 'fs';
 import {
   STATUS_FILE,
-  DATA_FILE,
-  COMMENTS_FILE
+  DATA_FILE
 } from '../config.js';
 import { writeJsonFileQueued } from '../file-store.js';
 
@@ -66,24 +65,4 @@ export async function writeTexts(texts) {
   const data = readData();
   data.texts = texts;
   await writeData(data);
-}
-
-export function readCommentsCache() {
-  try {
-    if (!fs.existsSync(COMMENTS_FILE)) return {};
-    const raw = fs.readFileSync(COMMENTS_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (e) {
-    console.error('Failed to read comments cache:', e.message);
-    return {};
-  }
-}
-
-export async function writeCommentsCache(cache) {
-  try {
-    await writeJsonFileQueued(COMMENTS_FILE, cache);
-  } catch (e) {
-    console.error('Failed to write comments cache:', e.message);
-  }
 }
