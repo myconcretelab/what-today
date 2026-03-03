@@ -46,6 +46,16 @@ npm run dev:frontend
 Le serveur écoute par défaut sur le port **3001** et charge les fichiers `ics`
 une seule fois au démarrage.
 
+### Stockage des réservations via `contrats` (recommandé)
+Le backend peut écrire/lire les réservations directement via l'API du repo `contrats`
+au lieu de Google Sheets.
+
+Variables à définir dans `backend/.env` :
+- `CONTRATS_API_BASE_URL` (ex: `http://localhost:4000`)
+- `CONTRATS_API_TOKEN` (recommandé, token dédié côté `contrats`)
+- ou `CONTRATS_API_BASIC_USER` + `CONTRATS_API_BASIC_PASSWORD` (fallback)
+- `CONTRATS_GITE_MAP` (optionnel, mapping explicite des gîtes)
+
 Les commentaires de réservations sont exposés via:
 - `GET /api/comments-range?start=YYYY-MM-DD&end=YYYY-MM-DD` — renvoie d'abord
   les valeurs du cache, puis déclenche une mise à jour en arrière‑plan depuis

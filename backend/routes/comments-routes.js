@@ -7,7 +7,9 @@ export function createCommentsRouter({
   readCommentsCache,
   commentsKey,
   refreshCommentsForAllGitesInRange,
-  refreshSingleComment
+  refreshSingleComment,
+  getCommentsRange,
+  getSingleComment
 }) {
   const router = Router();
 
@@ -24,6 +26,11 @@ export function createCommentsRouter({
 
     const { start: startIso, end: endIso } = rangeValidation.value;
     try {
+      if (typeof getCommentsRange === 'function') {
+        const direct = await getCommentsRange(startIso, endIso);
+        return res.json(direct || {});
+      }
+
       const startDate = dayjs(startIso, 'YYYY-MM-DD', true);
       const endDate = dayjs(endIso, 'YYYY-MM-DD', true);
 
@@ -65,6 +72,11 @@ export function createCommentsRouter({
     const isoDate = dateValidation.value;
 
     try {
+      if (typeof getSingleComment === 'function') {
+        const direct = await getSingleComment(giteId, isoDate);
+        return res.json(direct || { comment: 'pas de commentaires', phone: '' });
+      }
+
       const cache = readCommentsCache();
       const key = commentsKey(giteId, isoDate);
       const cached = cache[key];

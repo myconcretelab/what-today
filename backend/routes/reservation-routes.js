@@ -7,7 +7,8 @@ export function createReservationRouter({
   spreadsheetId,
   getAccessToken,
   getSheetId,
-  fetchFn
+  fetchFn,
+  saveReservation
 }) {
   const router = Router();
   const validGiteIds = new Set(Object.keys(sheetNames));
@@ -20,6 +21,12 @@ export function createReservationRouter({
 
     try {
       const { giteId, name, start, end, summary, price, phone } = validation.value;
+
+      if (typeof saveReservation === 'function') {
+        await saveReservation({ giteId, name, start, end, summary, price, phone });
+        return res.json({ success: true });
+      }
+
       const sheetName = sheetNames[giteId];
       if (!sheetName) return res.status(400).json({ success: false, error: 'Invalid gite' });
 

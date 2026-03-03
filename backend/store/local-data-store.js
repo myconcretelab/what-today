@@ -2,9 +2,7 @@ import fs from 'fs';
 import {
   STATUS_FILE,
   DATA_FILE,
-  COMMENTS_FILE,
-  IMPORT_LOG_FILE,
-  IMPORT_LOG_LIMIT
+  COMMENTS_FILE
 } from '../config.js';
 import { writeJsonFileQueued } from '../file-store.js';
 
@@ -12,7 +10,8 @@ const DEFAULT_DATA = {
   prices: [],
   texts: [],
   themes: [],
-  activeThemeId: 'default'
+  activeThemeId: 'default',
+  giteMappings: {}
 };
 
 export function readStatuses() {
@@ -35,6 +34,9 @@ export function readData() {
     if (!Array.isArray(parsed.texts)) parsed.texts = [];
     if (!Array.isArray(parsed.themes)) parsed.themes = [];
     if (!parsed.activeThemeId) parsed.activeThemeId = 'default';
+    if (!parsed.giteMappings || typeof parsed.giteMappings !== 'object' || Array.isArray(parsed.giteMappings)) {
+      parsed.giteMappings = {};
+    }
     return parsed;
   } catch (e) {
     console.error('Failed to read data.json:', e.message);
@@ -84,29 +86,4 @@ export async function writeCommentsCache(cache) {
   } catch (e) {
     console.error('Failed to write comments cache:', e.message);
   }
-}
-
-export function readImportLog() {
-  try {
-    if (!fs.existsSync(IMPORT_LOG_FILE)) return [];
-    const raw = fs.readFileSync(IMPORT_LOG_FILE, 'utf-8');
-    if (!raw || !raw.trim()) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.error('Failed to read import log:', e.message);
-    return [];
-  }
-}
-
-export async function writeImportLog(entries) {
-  await writeJsonFileQueued(IMPORT_LOG_FILE, entries);
-}
-
-export async function appendImportLog(entry) {
-  const log = readImportLog();
-  log.unshift(entry);
-  const trimmed = log.slice(0, IMPORT_LOG_LIMIT);
-  await writeImportLog(trimmed);
-  return trimmed;
 }

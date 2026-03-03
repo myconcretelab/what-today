@@ -16,7 +16,6 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EditIcon from '@mui/icons-material/Edit';
 import SettingsIcon from '@mui/icons-material/Settings';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { ThemeColorsProvider, useThemeColors } from './theme.jsx';
 
 // Clé utilisée pour mémoriser l'authentification en localStorage
@@ -38,7 +37,6 @@ const AvailabilityReservationPanel = React.lazy(() =>
     default: module.AvailabilityReservationPanel
   }))
 );
-const HarImportPanel = React.lazy(() => import('./components/HarImportPanel.jsx'));
 const SettingsPanel = React.lazy(() => import('./components/SettingsPanel.jsx'));
 
 const PanelFallback = ({ label }) => (
@@ -212,10 +210,10 @@ function InnerApp() {
         <Box
           sx={{
             display: 'flex',
-            width: '500%',
+            width: '400%',
             height: '100%',
             touchAction: 'pan-y',
-            transform: `translateX(-${panel * 20}%)`,
+            transform: `translateX(-${panel * 25}%)`,
             transition: 'transform 0.3s'
           }}
         >
@@ -292,19 +290,8 @@ function InnerApp() {
           >
             <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
               {shouldRenderPanel(3) && (
-                <React.Suspense fallback={<PanelFallback label="Chargement de l'import..." />}>
-                  <HarImportPanel panelBg={panelBg} />
-                </React.Suspense>
-              )}
-            </Box>
-          </Box>
-          <Box
-            sx={{ width: '100%', height: '100%', overflowY: 'auto', pb: 7 }}
-          >
-            <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 2 }}>
-              {shouldRenderPanel(4) && (
                 <React.Suspense fallback={<PanelFallback label="Chargement des reglages..." />}>
-                  <SettingsPanel panelBg={panelBg} onBack={() => setPanel(3)} />
+                  <SettingsPanel panelBg={panelBg} onBack={() => setPanel(2)} />
                 </React.Suspense>
               )}
             </Box>
@@ -325,7 +312,7 @@ function InnerApp() {
             sx={{
               position: 'absolute',
               top: 8,
-              left: `calc((100% / 5) * ${panel} + (100% / 10))`,
+              left: `calc((100% / 4) * ${panel} + (100% / 8))`,
               transform: 'translateX(-50%)',
               width:40,
               height: 40,
@@ -352,11 +339,6 @@ function InnerApp() {
           </Box>
           <Box sx={{ flex: 1, textAlign: 'center' }}>
             <IconButton onClick={() => setPanel(3)} sx={{ color: theme.menu?.icon || '#fff' }}>
-              <UploadFileIcon />
-            </IconButton>
-          </Box>
-          <Box sx={{ flex: 1, textAlign: 'center' }}>
-            <IconButton onClick={() => setPanel(4)} sx={{ color: theme.menu?.icon || '#fff' }}>
               <SettingsIcon />
             </IconButton>
           </Box>

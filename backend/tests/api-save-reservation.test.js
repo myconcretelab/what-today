@@ -94,3 +94,37 @@ test('POST /api/save-reservation returns 400 for invalid dates', async () => {
   assert.equal(res.status, 400);
   assert.equal(res.body.success, false);
 });
+
+test('POST /api/save-reservation uses custom save handler when provided', async () => {
+  let receivedPayload = null;
+  const router = createReservationRouter({
+    sheetNames: { phonsine: 'Phonsine' },
+    spreadsheetId: 'spreadsheet-id',
+    getAccessToken: async () => 'token',
+    getSheetId: async () => 123,
+    fetchFn: async () => makeResponse({ ok: true, jsonData: {} }),
+    saveReservation: async payload => {
+      receivedPayload = payload;
+    }
+  });
+
+  const payload = {
+    giteId: 'phonsine',
+    name: 'Jane Doe',
+    start: '14/03/2026',
+    end: '16/03/2026',
+    summary: 'Summary line',
+    price: 120,
+    phone: '06 12 34 56 78'
+  };
+
+  const res = await invokeRoute(router, {
+    method: 'POST',
+    path: '/save-reservation',
+    body: payload
+  });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { success: true });
+  assert.deepEqual(receivedPayload, payload);
+});

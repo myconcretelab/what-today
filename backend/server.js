@@ -9,18 +9,16 @@ import 'dayjs/locale/fr.js';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { parseHarReservationsByListing } from './parse-har-airbnb.js';
-import { writeTextFileQueued } from './file-store.js';
 import { createSheetsClient } from './services/sheets-client.js';
+import { createContratsIntegration } from './services/contrats-integration.js';
 import { createAdminRouter } from './routes/admin-routes.js';
 import { createArrivalsRouter } from './routes/arrivals-routes.js';
 import { createCommentsRouter } from './routes/comments-routes.js';
-import { createImportRouter } from './routes/import-routes.js';
 import { createReservationRouter } from './routes/reservation-routes.js';
 import {
   readCommentsCache,
   writeCommentsCache,
-  appendImportLog
+  readData
 } from './store/local-data-store.js';
 import {
   SHEET_NAMES,
@@ -63,11 +61,38 @@ const {
   fetchSheetValues
 } = sheetsClient;
 
+const contratsIntegration = createContratsIntegration({
+  baseUrl: process.env.CONTRATS_API_BASE_URL,
+  apiToken: process.env.CONTRATS_API_TOKEN,
+  basicPassword: process.env.CONTRATS_API_BASIC_PASSWORD,
+  basicUser: process.env.CONTRATS_API_BASIC_USER || 'what-today',
+  explicitGiteMap: process.env.CONTRATS_GITE_MAP,
+  getExplicitGiteMap: () => {
+    const data = readData();
+    if (!data || typeof data !== 'object') return {};
+    return data.giteMappings || {};
+  },
+  gites: GITES,
+  fetchFn: fetch
+});
+
+if (contratsIntegration.enabled) {
+  console.log('Contrats integration enabled');
+}
+
+const saveReservationFromPanel = contratsIntegration.enabled
+  ? async payload => contratsIntegration.saveManualReservation(payload)
+  : null;
+
 const app = express();
 app.use(cors());
 // Increase JSON body limit to allow large HAR uploads
 app.use(express.json({ limit: '50mb' }));
-app.use('/api', createAdminRouter());
+app.use('/api', createAdminRouter({
+  listContratsGites: contratsIntegration.enabled
+    ? () => contratsIntegration.listContratsGites()
+    : null
+}));
 app.use('/api', createArrivalsRouter({
   awaitIcalLoadIfNeeded,
   startIcalLoad,
@@ -79,29 +104,21 @@ app.use('/api', createCommentsRouter({
   readCommentsCache,
   commentsKey,
   refreshCommentsForAllGitesInRange,
-  refreshSingleComment
-}));
-app.use('/api', createImportRouter({
-  backendDir: __dirname,
-  parseHarReservationsByListing,
-  writeTextFileQueued,
-  resolveGiteId,
-  sheetNames: SHEET_NAMES,
-  splitReservationByMonth,
-  buildPreviewResponse,
-  awaitIcalLoadIfNeeded,
-  startIcalLoad,
-  buildIcalFlatReservations,
-  importReservationsToSheets,
-  buildImportLogEntry,
-  recordImportLog
+  refreshSingleComment,
+  getCommentsRange: contratsIntegration.enabled
+    ? (startIso, endIso) => contratsIntegration.fetchCommentsRange(startIso, endIso)
+    : null,
+  getSingleComment: contratsIntegration.enabled
+    ? (giteId, isoDate) => contratsIntegration.fetchSingleComment(giteId, isoDate)
+    : null
 }));
 app.use('/api', createReservationRouter({
   sheetNames: SHEET_NAMES,
   spreadsheetId,
   getAccessToken,
   getSheetId,
-  fetchFn: fetch
+  fetchFn: fetch,
+  saveReservation: saveReservationFromPanel
 }));
 
 function normalizeHeaderName(value) {
@@ -1126,34 +1143,6 @@ async function postProcessHarSheet({ sheetName, sheetId, columns, token }) {
 
   await sortSheetByDate({ sheetId, sortColIndex: dateColIndex, rowCount, colCount, token });
   await insertMonthSeparators({ sheetName, sheetId, token, dateColIndex, colCount });
-}
-
-function buildImportLogEntry({ source, selectionCount, summary }) {
-  const skipped = summary?.skipped || {};
-  return {
-    id: crypto.randomUUID(),
-    at: new Date().toISOString(),
-    source,
-    selectionCount: Number.isFinite(selectionCount) ? selectionCount : 0,
-    inserted: summary?.inserted || 0,
-    updated: summary?.updated || 0,
-    skipped: {
-      duplicate: skipped.duplicate || 0,
-      invalid: skipped.invalid || 0,
-      outsideYear: skipped.outsideYear || 0,
-      unknown: skipped.unknown || 0
-    },
-    perGite: summary?.perGite || {},
-    insertedItems: Array.isArray(summary?.insertedItems) ? summary.insertedItems : []
-  };
-}
-
-async function recordImportLog(entry) {
-  try {
-    await appendImportLog(entry);
-  } catch (e) {
-    console.error('Failed to write import log:', e.message);
-  }
 }
 
 const refreshingSheets = new Set();

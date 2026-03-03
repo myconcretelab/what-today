@@ -26,21 +26,25 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import { useThemeColors, DEFAULT_THEME } from '../theme.jsx';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
-  fetchPrices,
   savePrices,
-  fetchTexts,
   saveTexts,
   fetchData,
-  saveData
+  saveData,
+  fetchContratsGites
 } from '../services/api';
+import { GITES } from '../utils';
 
-const GITE_OPTIONS = ['phonsine', 'gree', 'edmond', 'liberte'];
+const GITE_OPTIONS = GITES.map(gite => ({ id: gite.id, name: gite.name }));
 
 export default function SettingsPanel({ panelBg, onBack }) {
   const theme = useTheme();
   const headerColor = theme.palette.getContrastText(panelBg || '#ffffff');
   const [prices, setPrices] = useState([]);
   const [texts, setTexts] = useState([]);
+  const [giteMappings, setGiteMappings] = useState({});
+  const [contratsGites, setContratsGites] = useState([]);
+  const [contratsEnabled, setContratsEnabled] = useState(false);
+  const [mappingSaveStatus, setMappingSaveStatus] = useState('');
   const {
     theme: colorTheme,
     themes,
@@ -57,11 +61,18 @@ export default function SettingsPanel({ panelBg, onBack }) {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetchPrices()
-      .then(data => setPrices(data))
+    fetchData()
+      .then(data => {
+        setPrices(data?.prices || []);
+        setTexts(data?.texts || []);
+        setGiteMappings(data?.giteMappings || {});
+      })
       .catch(() => {});
-    fetchTexts()
-      .then(data => setTexts(data))
+    fetchContratsGites()
+      .then(data => {
+        setContratsEnabled(Boolean(data?.enabled));
+        setContratsGites(Array.isArray(data?.gites) ? data.gites : []);
+      })
       .catch(() => {});
   }, []);
 
@@ -113,6 +124,28 @@ export default function SettingsPanel({ panelBg, onBack }) {
     saveTexts(texts).catch(() => {});
   };
 
+  const handleMappingChange = (whatTodayGiteId, contratsGiteId) => {
+    setGiteMappings(prev => ({
+      ...prev,
+      [whatTodayGiteId]: contratsGiteId
+    }));
+    setMappingSaveStatus('');
+  };
+
+  const handleSaveMappings = async () => {
+    try {
+      const current = await fetchData();
+      const next = {
+        ...(current && typeof current === 'object' ? current : {}),
+        giteMappings
+      };
+      await saveData(next);
+      setMappingSaveStatus('saved');
+    } catch (err) {
+      setMappingSaveStatus('error');
+    }
+  };
+
   const handleExportData = async () => {
     try {
       const data = await fetchData();
@@ -143,6 +176,7 @@ export default function SettingsPanel({ panelBg, onBack }) {
       await saveData(data);
       setPrices(data.prices || []);
       setTexts(data.texts || []);
+      setGiteMappings(data.giteMappings || {});
       if (Array.isArray(data.themes)) {
         localStorage.setItem('wt-themes', JSON.stringify(data.themes));
         localStorage.setItem('wt-active-theme', data.activeThemeId || data.themes[0]?.id || 'default');
@@ -193,8 +227,8 @@ export default function SettingsPanel({ panelBg, onBack }) {
                   )}
                 >
                   {GITE_OPTIONS.map(g => (
-                    <MenuItem key={g} value={g}>
-                      {g}
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -255,6 +289,55 @@ export default function SettingsPanel({ panelBg, onBack }) {
           </Box>
         </CardContent>
       </Card> 
+      <Card sx={{ mb: 2, boxShadow: 'none', bgcolor: colorTheme.cardBg }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Connexion des gîtes (what-today → contrats)
+          </Typography>
+          {!contratsEnabled && (
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Intégration `contrats` non configurée côté backend.
+            </Typography>
+          )}
+          {contratsEnabled && GITE_OPTIONS.map(gite => (
+            <Box key={gite.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+              <Typography sx={{ minWidth: 220 }}>{gite.name}</Typography>
+              <FormControl sx={{ minWidth: 260 }}>
+                <InputLabel>Gîte contrats</InputLabel>
+                <Select
+                  value={giteMappings[gite.id] || ''}
+                  onChange={e => handleMappingChange(gite.id, e.target.value)}
+                  label="Gîte contrats"
+                >
+                  <MenuItem value="">
+                    <em>Non connecté</em>
+                  </MenuItem>
+                  {contratsGites.map(contratsGite => (
+                    <MenuItem key={contratsGite.id} value={contratsGite.id}>
+                      {contratsGite.nom} ({contratsGite.prefixe_contrat || 'sans prefixe'})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          ))}
+          {contratsEnabled && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+              <Button variant="contained" onClick={handleSaveMappings}>
+                Sauvegarder les connexions
+              </Button>
+              {mappingSaveStatus === 'saved' && (
+                <Typography variant="body2">Connexions sauvegardées.</Typography>
+              )}
+              {mappingSaveStatus === 'error' && (
+                <Typography variant="body2" color="error">
+                  Erreur pendant la sauvegarde.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
         <input
           type="file"
           accept="application/json"

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { IMPORT_LOG_LIMIT, SHEET_NAMES } from '../config.js';
+import { SHEET_NAMES } from '../config.js';
 import {
   validateStatusUpdatePayload,
   validatePricesPayload,
@@ -9,7 +9,6 @@ import {
 import {
   readStatuses,
   writeStatuses,
-  readImportLog,
   readPrices,
   writePrices,
   readTexts,
@@ -20,8 +19,22 @@ import {
 
 const VALID_GITE_IDS = new Set(Object.keys(SHEET_NAMES));
 
-export function createAdminRouter() {
+export function createAdminRouter({ listContratsGites } = {}) {
   const router = Router();
+
+  router.get('/contrats-gites', async (_req, res) => {
+    if (typeof listContratsGites !== 'function') {
+      return res.json({ enabled: false, gites: [] });
+    }
+
+    try {
+      const gites = await listContratsGites();
+      return res.json({ enabled: true, gites: Array.isArray(gites) ? gites : [] });
+    } catch (err) {
+      console.error('Failed to load contrats gites:', err.message);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   router.get('/statuses', (req, res) => {
     res.json(readStatuses());
@@ -47,15 +60,6 @@ export function createAdminRouter() {
       console.error('Failed to save status:', err.message);
       res.status(500).json({ success: false, error: err.message });
     }
-  });
-
-  router.get('/import-log', (req, res) => {
-    const rawLimit = parseInt(req.query.limit, 10);
-    const log = readImportLog();
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0
-      ? Math.min(rawLimit, IMPORT_LOG_LIMIT)
-      : 5;
-    res.json({ entries: log.slice(0, limit), total: log.length });
   });
 
   router.get('/prices', (req, res) => {

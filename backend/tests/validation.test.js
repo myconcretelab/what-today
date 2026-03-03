@@ -4,7 +4,8 @@ import {
   validateDateRangeQuery,
   validateStatusUpdatePayload,
   validateSaveReservationPayload,
-  validateHarImportPayload
+  validateHarImportPayload,
+  validateDataPayload
 } from '../validation.js';
 
 test('validateDateRangeQuery accepts valid range', () => {
@@ -50,6 +51,7 @@ test('validateHarImportPayload validates and sanitizes reservations', () => {
   const result = validateHarImportPayload({
     reservations: [
       {
+        existingReservationId: 'res_123',
         giteId: 'gree',
         type: 'airbnb',
         checkIn: '2026-04-10',
@@ -66,9 +68,30 @@ test('validateHarImportPayload validates and sanitizes reservations', () => {
   assert.equal(result.ok, true);
   assert.equal(result.value.reservations.length, 1);
   assert.equal(result.value.reservations[0].type, 'airbnb');
+  assert.equal(result.value.reservations[0].existingReservationId, 'res_123');
 
   const invalid = validateHarImportPayload({
     reservations: [{ checkIn: 'bad-date', checkOut: '2026-04-13' }]
   });
   assert.equal(invalid.ok, false);
+});
+
+test('validateDataPayload accepts giteMappings', () => {
+  const validGiteIds = new Set(['phonsine', 'gree', 'edmond', 'liberte']);
+  const result = validateDataPayload({
+    prices: [],
+    texts: [],
+    themes: [],
+    activeThemeId: 'default',
+    giteMappings: {
+      phonsine: 'cuid_phonsine',
+      gree: ''
+    }
+  }, validGiteIds);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.value.giteMappings, {
+    phonsine: 'cuid_phonsine',
+    gree: ''
+  });
 });

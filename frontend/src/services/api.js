@@ -8,14 +8,10 @@ export const SAVE_RESERVATION = `${API_BASE}/api/save-reservation`;
 const PRICES_URL = `${API_BASE}/api/prices`;
 const TEXTS_URL = `${API_BASE}/api/texts`;
 const DATA_URL = `${API_BASE}/api/data`;
+const CONTRATS_GITES_URL = `${API_BASE}/api/contrats-gites`;
 const HOLIDAYS_URL = `${API_BASE}/api/school-holidays`;
 const PUBLIC_HOLIDAYS_URL = 'https://calendrier.api.gouv.fr/jours-feries/metropole.json';
 const COMMENTS_URL = `${API_BASE}/api/comments-range`;
-const UPLOAD_HAR_URL = `${API_BASE}/api/upload-har`;
-const HAR_PREVIEW_URL = `${API_BASE}/api/har/preview`;
-const HAR_IMPORT_URL = `${API_BASE}/api/har/import`;
-const ICAL_PREVIEW_URL = `${API_BASE}/api/ical/preview`;
-const IMPORT_LOG_URL = `${API_BASE}/api/import-log`;
 
 const DEFAULT_TIMEOUT_MS = 12000;
 const DEFAULT_RETRY_DELAY_MS = 400;
@@ -206,31 +202,6 @@ export async function saveData(data) {
   return postJson(DATA_URL, data);
 }
 
-export async function uploadHar(harJson) {
-  return postJson(UPLOAD_HAR_URL, harJson, {
-    timeoutMs: 30000
-  });
-}
-
-export async function previewHar(harJson) {
-  return postJson(HAR_PREVIEW_URL, harJson, {
-    timeoutMs: 30000
-  });
-}
-
-export async function previewIcal() {
-  return postJson(ICAL_PREVIEW_URL, undefined, {
-    timeoutMs: 30000
-  });
-}
-
-export async function importHarReservations(reservations) {
-  return postJson(HAR_IMPORT_URL, { reservations }, {
-    timeoutMs: 30000
-  });
-}
-
-export async function fetchImportLog(limit = 5) {
-  const params = new URLSearchParams({ limit: String(limit) });
-  return requestJson(`${IMPORT_LOG_URL}?${params.toString()}`);
+export async function fetchContratsGites() {
+  return requestJson(CONTRATS_GITES_URL);
 }

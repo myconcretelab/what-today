@@ -198,11 +198,36 @@ export function validateDataPayload(payload, validGiteIds) {
     activeThemeId = normalized;
   }
 
+  let giteMappings = {};
+  if (payload.giteMappings != null) {
+    if (!isPlainObject(payload.giteMappings)) {
+      return fail('Field "giteMappings" must be an object');
+    }
+
+    const next = {};
+    for (const [rawGiteId, rawContratsId] of Object.entries(payload.giteMappings)) {
+      const giteId = normalizeString(rawGiteId, { max: 40, allowEmpty: false });
+      if (!giteId || !validGiteIds.has(giteId)) {
+        return fail(`Unknown gite "${rawGiteId}" in giteMappings`);
+      }
+
+      const contratsId = normalizeString(rawContratsId ?? '', { max: 120, allowEmpty: true });
+      if (contratsId == null) {
+        return fail(`Invalid contrats gite id for "${giteId}"`);
+      }
+
+      next[giteId] = contratsId.trim();
+    }
+
+    giteMappings = next;
+  }
+
   return ok({
     prices: pricesResult.value,
     texts: textsResult.value,
     themes,
-    activeThemeId
+    activeThemeId,
+    giteMappings
   });
 }
 
@@ -293,6 +318,9 @@ export function validateHarImportPayload(payload) {
 
     const sanitized = {
       ...(normalizeString(item.id ?? '', { max: 120 }) ? { id: item.id.trim() } : {}),
+      ...(normalizeString(item.existingReservationId ?? '', { max: 120 })
+        ? { existingReservationId: item.existingReservationId.trim() }
+        : {}),
       ...(normalizeString(item.giteId ?? '', { max: 40 }) ? { giteId: item.giteId.trim() } : {}),
       ...(normalizeString(item.giteName ?? '', { max: 120, trim: false }) ? { giteName: item.giteName } : {}),
       ...(normalizeString(item.listingName ?? '', { max: 120, trim: false }) ? { listingName: item.listingName } : {}),

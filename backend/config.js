@@ -21,8 +21,6 @@ export const WRITE_BACKOFF_MAX_MS = 8000;
 export const STATUS_FILE = path.join(__dirname, 'statuses.json');
 export const DATA_FILE = path.join(__dirname, 'data.json');
 export const COMMENTS_FILE = path.join(__dirname, 'comments-cache.json');
-export const IMPORT_LOG_FILE = path.join(__dirname, 'import-log.json');
-export const IMPORT_LOG_LIMIT = 20;
 
 export const SCHOOL_DATASET_BASE =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
